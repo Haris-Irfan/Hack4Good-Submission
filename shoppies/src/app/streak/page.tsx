@@ -1,13 +1,13 @@
 "use client"
 
 import React, { useEffect, useState } from "react";
-import { getUserData } from "../firebaseConfig";
+import { getUserData } from "../../firebaseConfig";
 import { Box, FormControlLabel, Checkbox, Container, Button } from "@mui/material";
-import {auth} from '../firebaseConfig'
+import {auth} from '../../firebaseConfig'
 import { onAuthStateChanged } from "firebase/auth";
 import router from "next/router";
 import Router from "next/router";
-import { useAuth } from "../AuthProvider";
+import { useAuth } from "../../AuthProvider";
 
 export default function Streak() {
     const { user } = useAuth();

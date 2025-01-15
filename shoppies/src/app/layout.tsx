@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { AuthProvider } from "./AuthProvider"; // Update the path based on your structure
+import { AuthProvider } from "../AuthProvider"; // Update the path based on your structure
 
 export default function Layout({
   children,

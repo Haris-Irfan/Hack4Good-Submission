@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Container, Typography, Button, IconButton } from '@mui/material';
 import CloseIcon from "@mui/icons-material/Close";
 import { useRouter } from 'next/navigation';  
-import { getUserData } from '../firebaseConfig'; 
+import { getUserData } from '../../firebaseConfig'; 
 
 const RewardsPage: React.FC = () => {
   const [popup, setPopup] = useState<string | null>(null);
