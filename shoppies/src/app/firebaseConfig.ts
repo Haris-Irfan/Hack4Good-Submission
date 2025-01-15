@@ -42,97 +42,117 @@ export async function SignOut() {
     }
 }
 
-// export async function createUserData(
-//     successful_login : number, quest_login : number, successful_purchase : number,
-//     quest_purchase : number, visited_rewards : boolean, quest_expiry : Timestamp, points : number,
-//     streak : number[], travel : number, fashion : number, electronics : number, health : number,
-//     beauty : number
-// ) {
-//     try {
-//         if (!currentUser) {
-//           throw new Error("No user signed in");
-//         }
-//         const response = await addDoc(collection(database, "userData"), {
-//             "userEmail" : currentUser.email, //ignore error: user must be signed in for this function to be called
-//             "streak" : streak,
-            
-//             // quest related
-//             "successful_logins": successful_login, //curr number of successful logins
-//             "quest_logins" : quest_login, //number of logins needed to complete current quest
-//             "successful_purchases" : successful_purchase, //curr number of successful purchases
-//             "quest_purchases" : quest_purchase, //number of purchases needed to complete current quest
-//             "quest_has_visited_rewards" : visited_rewards, //has the user visited rewards page
-//             "quest_expiry" : quest_expiry, //time that the quest expires
-
-//             "points" : points, //number of points the user has from doing quests/streaks
-//             "travel" : travel,
-//             "fashion" : fashion,
-//             "electronics" : electronics,
-//             "health" : health,
-//             "beauty" : beauty
-//         })
-//     } catch (error) {
-//         console.log("Error: ", error)
-//     }
-// }
-
-// export async function updateUserData(
-//     successful_login : number, quest_login : number, successful_purchase : number,
-//     quest_purchase : number, visited_rewards : boolean, quest_expiry : Timestamp, points : number, 
-//     streak : number[], travel : number, fashion : number, electronics : number, health : number,
-//     beauty : number
-// ) {
-//     try {
-//         if (!currentUser) {
-//           throw new Error("No user signed in");
-//         }
-//         const doc = await getDocs(query(collection(database, "userData"), where("userEmail", "==", currentUser.email)))
-//         if (doc.empty) {
-//           throw new Error("No user data found");
-//         }
-//         const docRef = doc.docs[0].ref
-//         const response = await updateDoc(docRef, {
-//             "userEmail" : currentUser.email, //ignore error: user must be signed in for this function to be called
-//             "streak" : streak,
-            
-//             // quest related
-//             "successful_logins": successful_login, //curr number of successful logins
-//             "quest_logins" : quest_login, //number of logins needed to complete current quest
-//             "successful_purchases" : successful_purchase, //curr number of successful purchases
-//             "quest_purchases" : quest_purchase, //number of purchases needed to complete current quest
-//             "quest_has_visited_rewards" : visited_rewards, //has the user visited rewards page
-//             "quest_expiry" : quest_expiry, //time that the quest expires
-
-//             "points" : points, //number of points the user has from doing quests/streaks
-//             "travel" : travel,
-//             "fashion" : fashion,
-//             "electronics" : electronics,
-//             "health" : health,
-//             "beauty" : beauty
-
-//         })
-//         console.log("Successfully updated data")
-//     } catch (error) {
-//         console.log("Error: ", error)
-//     }
-// }
-
-// export async function getUserData() {
-//     try {
-//         //ignore error: user must be signed in for this function to be called
-//         if (!currentUser) {
-//           throw new Error("No user signed in");
-//         }
-//         const response = await getDocs(query(collection(database, "userData"), where("userEmail", "==", currentUser.email)))
-//         return response.docs[0].data()
-//     } catch (error) {
-//         console.log("Error:", error)
-//     }
-// }
-
 setPersistence(auth, browserLocalPersistence).catch((error) => {
   console.error("Failed to set persistence:", error);
 });
+
+interface Transaction {
+    item_name: string;
+    quantity: number;
+    purchase_date: Timestamp;
+}
+
+type transactions = Transaction[];
+
+export async function createUserData(user_email : string, voucher_amount : number, transaction_history : transactions[]) {
+    try {
+        if (!currentUser) {
+            throw new Error("No user signed in");
+        }
+        const response = await addDoc(collection(database, "userData"), {
+            "user_email" : currentUser.email,
+            "voucher_amount" : voucher_amount,
+            "transaction_history" : transaction_history
+        }) 
+        console.log("Successfully created new user");
+    } catch (error) {
+        console.log("Error: ", error) 
+    }
+}
+
+export async function updateUserData(user_email : string, voucher_amount : number, transaction_history : transactions[]) {
+    try {
+        if (!currentUser) {
+            throw new Error("No user signed in");
+        }
+        const doc = await getDocs(query(collection(database, "userData"), where("user_email", "==", currentUser.email)))
+        if (doc.empty) {
+            throw new Error("No user data found");
+        }
+        const docRef = doc.docs[0].ref
+        const response = await updateDoc(docRef, {
+            "user_email" : currentUser.email,
+            "voucher_amount" : voucher_amount,
+            "transaction_history" : transaction_history
+        })
+        console.log("Successfully updated user data")
+    } catch (error) {
+        console.log("Error: ", error)
+    }
+}
+
+export async function getUserData() {
+    try {
+        //ignore error: user must be signed in for this function to be called
+        if (!currentUser) {
+          throw new Error("No user signed in");
+        }
+        const response = await getDocs(query(collection(database, "userData"), where("user_email", "==", currentUser.email)))
+        return response.docs[0].data()
+    } catch (error) {
+        console.log("Error: ", error)
+    }
+}
+
+export async function createTransactionData(userEmail : string, purchase : { item_name: string, quantity: number }[], purchase_date : Timestamp) {
+    try {
+        if (!currentUser) {
+            throw new Error("No user signed in");
+        }
+        const response = await addDoc(collection(database, "transactions"), {
+            "userEmail" : currentUser.email,
+            "purchase" : purchase,
+            "purchase_date" : purchase_date
+        }) 
+        console.log("Successfully created transaction data");
+    } catch (error) {
+        console.log("Error: ", error)
+    }
+}
+
+export async function updateTransactionData(userEmail : string, purchase : { item_name: string, quantity: number }[], purchase_date : Timestamp) {
+    try {
+        if (!currentUser) {
+            throw new Error("No user signed in");
+        }
+        const doc = await getDocs(query(collection(database, "transactions"), where("user_email", "==", currentUser.email)))
+        if (doc.empty) {
+            throw new Error("No transaction data found");
+        }
+        const docRef = doc.docs[0].ref
+        const response = await updateDoc(docRef, {
+            "user_email" : currentUser.email,
+            "purchase" : purchase,
+            "purchase_date" : purchase_date
+        })
+        console.log("Successfully updated transaction data")
+    } catch (error) {
+        console.log("Error: ", error)
+    }
+}
+
+export async function getTransactionData() {
+    try {
+        //ignore error: user must be signed in for this function to be called
+        if (!currentUser) {
+          throw new Error("No user signed in");
+        }
+        const response = await getDocs(query(collection(database, "transactions"), where("user_email", "==", currentUser.email)))
+        return response.docs[0].data()
+    } catch (error) {
+        console.log("Error: ", error)
+    }
+}
 
 export async function createInventoryData(item_name : string, quantity : number) {
     try {
