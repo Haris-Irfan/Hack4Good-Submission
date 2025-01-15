@@ -3,13 +3,13 @@ import { collection, addDoc, getFirestore, getDocs, query, where, Timestamp, upd
 import { createUserWithEmailAndPassword, getAuth, signOut, onAuthStateChanged, User, browserLocalPersistence, setPersistence } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCNs0dmj_xnh1BTd7F-31nZVH385mIYAK4",
-  authDomain: "nus-shopback-hackathon.firebaseapp.com",
-  projectId: "nus-shopback-hackathon",
-  storageBucket: "nus-shopback-hackathon.firebasestorage.app",
-  messagingSenderId: "342825868584",
-  appId: "1:342825868584:web:605359965b201836ea041d"
-};
+    apiKey: "AIzaSyAqVtdqwIYvlNdz4jIDDJ6IAIYZVpOTj_Y",
+    authDomain: "hack4good-f1ff4.firebaseapp.com",
+    projectId: "hack4good-f1ff4",
+    storageBucket: "hack4good-f1ff4.firebasestorage.app",
+    messagingSenderId: "228793364194",
+    appId: "1:228793364194:web:c81852d72d98c73aea38bb"
+  };
 
 export const app = initializeApp(firebaseConfig)
 export const database = getFirestore(app)
