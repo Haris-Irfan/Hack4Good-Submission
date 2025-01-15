@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { collection, addDoc, getFirestore, getDocs, query, where, Timestamp, updateDoc } from 'firebase/firestore'
+import { collection, addDoc, getFirestore, getDocs, query, where, Timestamp, updateDoc, getDoc, DocumentReference } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, getAuth, signOut, onAuthStateChanged, User, browserLocalPersistence, setPersistence } from 'firebase/auth';
 
 const firebaseConfig = {
@@ -188,5 +188,91 @@ export async function getInventoryData(item_name : string) {
         }
     } catch (error) {
         console.error("Error updating new inventory item. ", error)
+    }
+}
+
+export async function getLast7DaysInventoryData() {
+    // returns an array of all the request documents from the past 7 days
+    try {
+        const docs = await getDocs(
+            query(collection(database, "inventory"))
+        )
+        if (!docs.empty) {
+            return docs.docs
+        }
+    } catch (error) {
+        console.error(error)
+    }
+}
+
+export async function createRequestData(user_email : string, item_name : string, quantity : number) {
+    //status is a string of either of the following values: pending/approved/rejected. always initially "pending"
+    try {
+        const log_entry = "Request created on " + Timestamp.now().toString()
+        await addDoc(collection(database, "requests"), {
+            "user_email" : user_email,
+            "item_name" : item_name,
+            "quantity" : quantity,
+            "date" : Timestamp.now(),
+            "status" : "pending",
+            "log" : [log_entry]
+        })
+        console.log("Successfully created new request.")
+    } catch (error) {
+        console.error("Error creating request. ", error)
+    }
+}
+
+export async function updateRequestData(docRef : DocumentReference, status : string, log : string[]) {
+    //status is a string of either of the following values: pending/approved/rejected. always initially "pending"
+    try {
+        updateDoc(docRef, {
+            "status" : status,
+            "log" : log.push("Status updated to " + status + " on " + Timestamp.now().toString())
+        })
+    } catch (error) {
+        console.error(error)
+    }
+}
+
+export async function getRequestData() {
+    // returns an array of all the request documents
+    try {
+        const docs = await getDocs(
+            query(collection(database, "requests"))
+        )
+        if (!docs.empty) {
+            return docs.docs
+        }
+    } catch (error) {
+        console.error(error)
+    }
+}
+
+export async function getPendingRequestData() {
+    // returns an array of all the request documents that are currently pending
+    try {
+        const docs = await getDocs(
+            query(collection(database, "requests"), where("status", "==", "pending"))
+        )
+        if (!docs.empty) {
+            return docs.docs
+        }
+    } catch (error) {
+        console.error(error)
+    }
+}
+
+export async function getLast7DaysRequestData() {
+    // returns an array of all the request documents from the past 7 days
+    try {
+        const docs = await getDocs(
+            query(collection(database, "requests"), where("date", ">=", new Timestamp(Timestamp.now().seconds - 7 * 24 * 60 * 60, 0)))
+        )
+        if (!docs.empty) {
+            return docs.docs
+        }
+    } catch (error) {
+        console.error(error)
     }
 }
