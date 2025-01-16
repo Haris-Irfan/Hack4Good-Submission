@@ -104,19 +104,15 @@ export async function getUserData() {
 }
 
 export async function createTransactionData(purchase : { item_name: string, quantity: number }[], purchase_date : Timestamp) {
-    try {
-        if (!currentUser) {
-            throw new Error("No user signed in");
-        }
-        await addDoc(collection(database, "transactions"), {
-            "userEmail" : currentUser.email,
-            "purchase" : purchase,
-            "purchase_date" : purchase_date
-        }) 
-        console.log("Successfully created transaction data");
-    } catch (error) {
-        console.log("Error: ", error)
+    // calling function must handle a possible error
+    if (!currentUser) {
+        throw new Error("No user signed in");
     }
+    await addDoc(collection(database, "transactions"), {
+        "userEmail" : currentUser.email,
+        "purchase" : purchase,
+        "purchase_date" : purchase_date
+    })
 }
 
 export async function updateTransactionData(purchase : { item_name: string, quantity: number }[], purchase_date : Timestamp) {
@@ -153,17 +149,44 @@ export async function getTransactionData() {
     }
 }
 
-export async function createInventoryData(item_name : string, quantity : number) {
+export async function createInventoryData(item_name : string, quantity : number, cost : number) {
     try {
         const log_entry = String("Added " + quantity + " " + item_name)
         await addDoc(collection(database, "inventory"), {
             "item_name" :  item_name,
             "quantity" : quantity,
+            "cost" : cost,
             "log" : [log_entry]
         })
         console.log("Successfully created new inventory item.")
     } catch (error) {
         console.error("Error creating new inventory item. ", error)
+    }
+}
+
+export async function changeCostOfInventoryItem(item_name : string, cost : number) {
+    try {
+        const original_docs =  await getDocs(
+            query(collection(database, "inventory"), where("item_name", "==", item_name))
+        )
+        if (!original_docs.empty && original_docs.size == 1) {
+            const original_data = original_docs.docs[0].data()
+            const original_data_ref = original_docs.docs[0].ref
+
+            const new_log_entry = "Price of " + item_name + " changed to " + cost + " on " + Timestamp.now().toString()
+
+            const new_log : string[] = original_data["log"].push(new_log_entry)
+
+            await updateDoc(original_data_ref, {
+                "cost" : cost,
+                "log" : new_log
+            })
+            console.log("Successfully updated inventory item.")
+        } else {
+            console.error("Error!")
+        }
+    } catch (error) {
+        console.error("Error updating new inventory item. ", error)
     }
 }
 

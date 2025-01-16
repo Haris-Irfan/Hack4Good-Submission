@@ -4,16 +4,17 @@ import React, { useEffect, useState } from 'react';
 import { Box, Typography, Button, TextField, Drawer, Checkbox, ListItem, List, ListItemText,
   IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TableContainer, Table,
   TableHead, TableRow, TableCell, TableBody, Paper, Alert } from "@mui/material";
-import { Search, ShoppingCart } from "@mui/icons-material";
+import { Cancel, Search, ShoppingCart } from "@mui/icons-material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { getAllInventoryData, auth, createRequestData } from '@/firebaseConfig';
+import { getAllInventoryData, auth, createRequestData, createTransactionData } from '@/firebaseConfig';
 import { useRouter } from 'next/navigation';
-import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
+import { QueryDocumentSnapshot, DocumentData, Timestamp } from 'firebase/firestore';
 
 const Home: React.FC = () => {
   interface cartItem {
     item_name : string,
-    quantity : number
+    quantity : number,
+    cost: number
   }
 
   const [popup, setPopup] = useState<string | null>(null);
@@ -71,6 +72,7 @@ const Home: React.FC = () => {
 
   const handleDrawerAdminPress = () => {
     if (!auth.currentUser) {
+      setMessageType('error')
       setMsg("Access Denied. Please login first.")
       setAlert(true)
     } else {
@@ -111,7 +113,8 @@ const Home: React.FC = () => {
       if (filteredProducts[index].data()["quantity"] > 0) {
         cart.push({
           item_name : filteredProducts[index].data()["item_name"],
-          quantity: 1
+          quantity: 1,
+          cost : filteredProducts[index].data()["cost"]
         })
         setAlert(true)
         setMessageType("success")
@@ -127,6 +130,26 @@ const Home: React.FC = () => {
       setAlert(true)
       setMessageType("success")
       setMsg("Successfully created a restock request!")
+    } catch (error) {
+      setAlert(true)
+      setMessageType("error")
+      setMsg(String(error))
+    }
+  }
+
+  const handleCheckOutPress = async () => {
+    const checkout_cart : any[] = cart.map(x => {
+      const new_item : any = {...x}
+      delete new_item.cost
+      return new_item
+    })
+    
+    try {
+      await createTransactionData(checkout_cart, Timestamp.now())
+      setAlert(true)
+      setMessageType("success")
+      setMsg("Successfully made purchase!")
+      setCart([])
     } catch (error) {
       setAlert(true)
       setMessageType("error")
@@ -276,6 +299,9 @@ const Home: React.FC = () => {
                   <Typography variant='body2' sx = {{textAlign: 'center'}}>
                     Quantity Available: {x.data()["quantity"]}
                   </Typography>
+                  <Typography variant='body2' sx = {{textAlign: 'center'}}>
+                    Cost : ${x.data()["cost"]}
+                  </Typography>
                   {
                     x.data()["quantity"] != 0
                     ? (
@@ -324,16 +350,24 @@ const Home: React.FC = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell align='center'>Item</TableCell>
-                  <TableCell align='right'>Quantity</TableCell>
+                  <TableCell>Item</TableCell>
+                  <TableCell>Quantity</TableCell>
+                  <TableCell>Cost of 1 item</TableCell>
+                  <TableCell/>
                 </TableRow>
               </TableHead>
               <TableBody>
                   {
                     cart.map((item, index) => (
                       <TableRow key={index}>
-                        <TableCell align='center'>{item.item_name}</TableCell>
-                        <TableCell align='right'>{item.quantity}</TableCell>
+                        <TableCell>{item.item_name}</TableCell>
+                        <TableCell>{item.quantity}</TableCell>
+                        <TableCell>{item.cost}</TableCell>
+                        <TableCell>
+                          <Button onClick={() => { const newCart = [...cart]; newCart.splice(index, 1); setCart(newCart) }}>
+                            <Cancel color='error'/>
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))
                   }
@@ -341,8 +375,12 @@ const Home: React.FC = () => {
             </Table>
           </TableContainer>
         </DialogContent>
-        <DialogActions>
+        <Typography variant='body2' sx={{ fontWeight: 'bold', textAlign: 'center' }}>
+          Total cost: ${cart.reduce((x, y) => x + y.cost * y.quantity, 0).toFixed(2)}
+        </Typography>
+        <DialogActions sx = {{ justifyContent: 'space-between' }}>
           <Button onClick={() => setPopup(null)}>Close</Button>
+          <Button onClick={handleCheckOutPress}>Checkout</Button>
         </DialogActions>
       </Dialog>
     </Box>
