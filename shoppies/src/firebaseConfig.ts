@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { collection, addDoc, getFirestore, getDocs, query, where, Timestamp, updateDoc, DocumentReference } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, getAuth, signOut, onAuthStateChanged, User, browserLocalPersistence, setPersistence } from 'firebase/auth';
+import { throws } from "assert";
 
 const firebaseConfig = {
     apiKey: "AIzaSyAqVtdqwIYvlNdz4jIDDJ6IAIYZVpOTj_Y",
@@ -178,8 +179,8 @@ export async function updateInventoryData(item_name : string, quantity : number,
 
             const new_item_quantity = type == 0 ? original_data["quantity"] - quantity : original_data["quantity"] + quantity
             const new_log_entry = type == 0
-                ? quantity + " amount of " + item_name + " purchased on " + Timestamp.now().toString()
-                : quantity + " amount of " + item_name + " restocked on " + Timestamp.now().toString()
+                ? quantity + " " + item_name + " purchased on " + Timestamp.now().toString()
+                : quantity + " " + item_name + " restocked on " + Timestamp.now().toString()
 
             const new_log : string[] = original_data["log"].push(new_log_entry)
 
@@ -222,22 +223,20 @@ export async function getAllInventoryData() {
     }
 }
 
-export async function createRequestData(user_email : string, item_name : string, quantity : number) {
+export async function createRequestData(item_name : string) {
     //status is a string of either of the following values: pending/approved/rejected. always initially "pending"
-    try {
-        const log_entry = "Request created on " + Timestamp.now().toString()
-        await addDoc(collection(database, "requests"), {
-            "user_email" : user_email,
-            "item_name" : item_name,
-            "quantity" : quantity,
-            "date" : Timestamp.now(),
-            "status" : "pending",
-            "log" : [log_entry]
-        })
-        console.log("Successfully created new request.")
-    } catch (error) {
-        console.error("Error creating request. ", error)
+    //this function may throw errors and must be handled by the caller
+    if (!auth.currentUser) {
+        throw new Error("No User signed in")
     }
+    const log_entry = "Request created on " + Timestamp.now().toString()
+    await addDoc(collection(database, "requests"), {
+        "user_email" : auth.currentUser.email,
+        "item_name" : item_name,
+        "date" : Timestamp.now(),
+        "status" : "pending",
+        "log" : [log_entry]
+    })
 }
 
 export async function updateRequestData(docRef : DocumentReference, status : string, log : string[]) {
