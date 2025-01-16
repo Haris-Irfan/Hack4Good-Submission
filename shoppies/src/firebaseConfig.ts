@@ -1,7 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { collection, addDoc, getFirestore, getDocs, query, where, Timestamp, updateDoc, DocumentReference } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, getAuth, signOut, onAuthStateChanged, User, browserLocalPersistence, setPersistence } from 'firebase/auth';
-import { throws } from "assert";
 
 const firebaseConfig = {
     apiKey: "AIzaSyAqVtdqwIYvlNdz4jIDDJ6IAIYZVpOTj_Y",
@@ -46,7 +45,7 @@ setPersistence(auth, browserLocalPersistence).catch((error) => {
   console.error("Failed to set persistence:", error);
 });
 
-interface Transaction {
+export interface Transaction {
     item_name: string;
     quantity: number;
     purchase_date: Timestamp;
