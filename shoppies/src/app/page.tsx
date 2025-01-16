@@ -21,10 +21,9 @@ const Home: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string>('')
   const [error, setError] = useState<boolean>(false)
 
-  const [cart, setCart] = useState<cartItem[]>([{
-    item_name : "test", quantity : 3
-  }])
+  const [cart, setCart] = useState<cartItem[]>([])
   const [products, setProducts] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
   const router = useRouter()
 
   useEffect(() => {
@@ -33,6 +32,7 @@ const Home: React.FC = () => {
         const data = await getAllInventoryData()
         if (data) {
           setProducts(data)
+          setFilteredProducts(data)
         }
       } catch (error) {
         console.error(error)
@@ -40,6 +40,15 @@ const Home: React.FC = () => {
     }
     getProducts()
   }, [])
+
+  useEffect(() => {
+    if (searchBar == '') {
+      setFilteredProducts(products)
+    } else {
+      const data = products.filter(x => x.data()["item_name"].toLowerCase().includes(searchBar.toLowerCase()))
+      setFilteredProducts(data)
+    }
+  }, [searchBar])
 
   const toggleDrawer = (open: boolean) => {
     return (event: React.MouseEvent | React.KeyboardEvent) => {
@@ -216,7 +225,7 @@ const Home: React.FC = () => {
               gap: 6,
             }}
           >
-            {products
+            {filteredProducts
               .map((x, index) => (
                 <Box
                   key={index}
