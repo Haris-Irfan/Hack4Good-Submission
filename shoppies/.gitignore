@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# firebase-admin
+/src/hack4good-f1ff4-firebase-adminsdk-pvntr-4a365a070b.json
