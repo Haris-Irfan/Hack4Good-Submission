@@ -31,6 +31,7 @@ const Home: React.FC = () => {
   const [filteredProducts, setFilteredProducts] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
   const [addCartIndex, setAddCartIndex] = useState<number>(-1)
   const [addCartQuantity, setAddCartQuantity] = useState<number>(1)
+  const [useVoucher, setUseVoucher] = useState<number>(0)
 
   const [userData, setUserData] = useState<DocumentData>()
 
@@ -159,7 +160,14 @@ const Home: React.FC = () => {
     }
   }
 
-  const handleCheckOutPress = async () => {
+  const handleCheckOutPress = async (total : number) => {
+    if (useVoucher < 0 || useVoucher > userData?.voucher_amount || useVoucher > total) {
+      setAlert(true)
+      setMessageType("error")
+      setMsg('Please enter valid voucher redemption amount.')
+      return
+    }
+
     const checkout_cart : any[] = cart.map(x => {
       const new_item : any = {...x}
       delete new_item.cost
@@ -432,12 +440,25 @@ const Home: React.FC = () => {
             </Table>
           </TableContainer>
         </DialogContent>
-        <Typography variant='body2' sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-          Total cost: ${cart.reduce((x, y) => x + y.cost * y.quantity, 0).toFixed(2)}
+        <Typography variant='body1' sx={{ fontWeight: 'bold', textAlign: 'center' }}>
+          Subtotal: ${cart.reduce((x, y) => x + y.cost * y.quantity, 0).toFixed(2)}
+        </Typography>
+        <Typography variant='body1' sx={{ fontWeight: 'bold', textAlign: 'center' }}>
+          Vouchers available: ${userData != null ? userData["voucher_amount"].toFixed(2) : "0.00"}
+        </Typography>
+        <Box sx={{display:'flex', flexDirection:'row', gap:2, justifyContent:'center'}}>
+          <Typography variant='body1' sx={{ fontWeight: 'bold', textAlign: 'center', marginTop:1 }}>Voucher amount to redeem: </Typography>
+          <TextField disabled variant='outlined' size='small' value={useVoucher} sx={{width: 60}}></TextField>
+          <Slider min={0} max={userData ? userData.voucher_amount : 0} step={0.01}
+            sx={{width:'0.3', marginTop:1}} size='small' disabled={!userData}
+            value={useVoucher} onChange={(e : any)=> setUseVoucher(e.target.value)}/>
+        </Box>
+        <Typography variant='body1' sx={{ fontWeight: 'bold', textAlign: 'center' }}>
+          Total: ${(cart.reduce((x, y) => x + y.cost * y.quantity, 0) - useVoucher).toFixed(2)}
         </Typography>
         <DialogActions sx = {{ justifyContent: 'space-between' }}>
           <Button onClick={() => setPopup(null)}>Close</Button>
-          <Button onClick={handleCheckOutPress}>Checkout</Button>
+          <Button onClick={() => handleCheckOutPress(cart.reduce((x, y) => x + y.cost * y.quantity, 0))}>Checkout</Button>
         </DialogActions>
       </Dialog>
 
