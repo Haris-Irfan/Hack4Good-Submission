@@ -6,11 +6,12 @@ import { Box, Typography, Button, TextField, Drawer, Checkbox, ListItem, List, L
   TableHead, TableRow, TableCell, TableBody, Paper, Alert } from "@mui/material";
 import { Cancel, Search, ShoppingCart } from "@mui/icons-material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { getAllInventoryData, auth, createRequestData, createTransactionData } from '@/firebaseConfig';
+import { getAllInventoryData, auth, createRequestData, createTransactionData, updateInventoryData, getUserData } from '@/firebaseConfig';
 import { useRouter } from 'next/navigation';
 import { QueryDocumentSnapshot, DocumentData, Timestamp } from 'firebase/firestore';
 
 const Home: React.FC = () => {
+
   interface cartItem {
     item_name : string,
     quantity : number,
@@ -28,6 +29,9 @@ const Home: React.FC = () => {
   const [cart, setCart] = useState<cartItem[]>([])
   const [products, setProducts] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
   const [filteredProducts, setFilteredProducts] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
+
+  const [userData, setUserData] = useState<DocumentData>()
+
   const router = useRouter()
 
   useEffect(() => {
@@ -38,11 +42,27 @@ const Home: React.FC = () => {
           setProducts(data)
           setFilteredProducts(data)
         }
-      } catch (alert) {
-        console.error(alert)
+      } catch (error) {
+        console.error(error)
       }
     }
     getProducts()
+  }, [])
+
+  useEffect(() => {
+    if (auth.currentUser) {
+      const retrieveUserData = async () => {
+        try {
+          const data = await getUserData()
+          if (data) {
+            setUserData(data)
+          }
+        } catch (error) {
+          console.error(error)
+        }
+      }
+      retrieveUserData()
+    }
   }, [])
 
   useEffect(() => {
@@ -83,6 +103,16 @@ const Home: React.FC = () => {
       } else {
         console.log("Push to admin console page")
       }
+    }
+  }
+
+  const handleDrawerVoucherPress = () => {
+    if (!auth.currentUser) {
+      setMessageType('error')
+      setMsg("Access Denied. Please login first.")
+      setAlert(true)
+    } else {
+      setPopup("vouchers")
     }
   }
 
@@ -146,6 +176,9 @@ const Home: React.FC = () => {
     
     try {
       await createTransactionData(checkout_cart, Timestamp.now())
+      cart.forEach(async x => {
+        await updateInventoryData(x.item_name, x.quantity, 0)
+      })
       setAlert(true)
       setMessageType("success")
       setMsg("Successfully made purchase!")
@@ -159,7 +192,7 @@ const Home: React.FC = () => {
 
   const shopTypeButtons = [
     { label: "About Us", action: () => console.log("About Us clicked") },
-    { label: "Vouchers", action: () => console.log() },
+    { label: "Vouchers", action: handleDrawerVoucherPress },
     { label: "Transaction History", action: () => console.log() },
     { label: "Admin", action: handleDrawerAdminPress },
     { label: "Sign Out", action: () => console.log("Sign Out clicked") },
@@ -383,6 +416,16 @@ const Home: React.FC = () => {
           <Button onClick={handleCheckOutPress}>Checkout</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Voucher Dialog */}
+      <Dialog open={popup == "vouchers"}>
+          <DialogTitle>Vouchers</DialogTitle>
+          <DialogContent>Voucher Amount: {userData ? userData["voucher_amount"] : ""}</DialogContent>
+          <DialogActions>
+            <Button onClick={() => setPopup(null)}>Close</Button>
+          </DialogActions>
+      </Dialog>
+
     </Box>
   );
 };
