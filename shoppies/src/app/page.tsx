@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Button, TextField, Drawer, Checkbox, ListItem, List, ListItemText, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Paper, Select } from "@mui/material";
+import { Box, Typography, Button, TextField, Drawer, Checkbox, ListItem, List, ListItemText,
+  IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TableContainer, Table,
+  TableHead, TableRow, TableCell, TableBody, Paper, Alert } from "@mui/material";
 import { Search, ShoppingCart } from "@mui/icons-material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { getAllInventoryData, auth } from '@/firebaseConfig';
+import { getAllInventoryData, auth, createRequestData } from '@/firebaseConfig';
 import { useRouter } from 'next/navigation';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 
@@ -18,8 +20,9 @@ const Home: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchBar, setSearchBar] = useState<string>('')
 
-  const [errorMsg, setErrorMsg] = useState<string>('')
-  const [error, setError] = useState<boolean>(false)
+  const [messageType, setMessageType] = useState<string>('') //success or error
+  const [msg, setMsg] = useState<string>('')
+  const [alert, setAlert] = useState<boolean>(false)
 
   const [cart, setCart] = useState<cartItem[]>([])
   const [products, setProducts] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
@@ -34,8 +37,8 @@ const Home: React.FC = () => {
           setProducts(data)
           setFilteredProducts(data)
         }
-      } catch (error) {
-        console.error(error)
+      } catch (alert) {
+        console.error(alert)
       }
     }
     getProducts()
@@ -68,13 +71,13 @@ const Home: React.FC = () => {
 
   const handleDrawerAdminPress = () => {
     if (!auth.currentUser) {
-      setErrorMsg("Access Denied. Please login first.")
-      setError(true)
+      setMsg("Access Denied. Please login first.")
+      setAlert(true)
     } else {
       // admin@minimart.com, adminpassword
       if (auth.currentUser.email != "admin@minimart.com") {
-        setErrorMsg("Access Denied.")
-        setError(true)
+        setMsg("Access Denied.")
+        setAlert(true)
       } else {
         console.log("Push to admin console page")
       }
@@ -82,25 +85,52 @@ const Home: React.FC = () => {
   }
 
   const handleCartPress = () => {
-    setPopup("cart")
+    if (cart.length == 0) {
+      setAlert(true)
+      setMessageType("error")
+      setMsg("No items in cart yet!")
+    } else {
+      setPopup("cart")
+    }
   }
 
   const handleAddToCartPress = (index : number) => {
-    const cart_item = cart.find(x => x.item_name == products[index].data()["item_name"])
+    const cart_item = cart.find(x => x.item_name == filteredProducts[index].data()["item_name"])
     if (cart_item) {
-      if (cart_item.quantity < products[index].data()["quantity"]) {
+      if (cart_item.quantity < filteredProducts[index].data()["quantity"]) {
         cart_item.quantity += 1
+        setAlert(true)
+        setMessageType("success")
+        setMsg("Successfully added to cart!")
       } else {
-        setError(true)
-        setErrorMsg("Exceeds inventory quantity!")
+        setAlert(true)
+        setMessageType("error")
+        setMsg("Exceeds inventory quantity!")
       }
     } else {
-      if (products[index].data()["quantity"] > 0) {
+      if (filteredProducts[index].data()["quantity"] > 0) {
         cart.push({
-          item_name : products[index].data()["item_name"],
+          item_name : filteredProducts[index].data()["item_name"],
           quantity: 1
         })
+        setAlert(true)
+        setMessageType("success")
+        setMsg("Successfully added to cart!")
       }
+    }
+  }
+
+  const handleRequestRestock = async (index : number) => {
+    const item_name = filteredProducts[index].data()["item_name"]
+    try {
+      await createRequestData(item_name)
+      setAlert(true)
+      setMessageType("success")
+      setMsg("Successfully created a restock request!")
+    } catch (error) {
+      setAlert(true)
+      setMessageType("error")
+      setMsg(String(error))
     }
   }
 
@@ -243,15 +273,33 @@ const Home: React.FC = () => {
                   <Typography variant="body1" sx={{ fontWeight: 'bold', textAlign: 'center' }}>
                     {x.data()["item_name"]}
                   </Typography>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    sx={{ mt: 2, width: '100%' }}
-                    startIcon={<ShoppingCart />}
-                    onClick={() => handleAddToCartPress(index)}
-                  >
-                    Add to Cart
-                  </Button>
+                  <Typography variant='body2' sx = {{textAlign: 'center'}}>
+                    Quantity Available: {x.data()["quantity"]}
+                  </Typography>
+                  {
+                    x.data()["quantity"] != 0
+                    ? (
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        sx={{ mt: 2, width: '100%' }}
+                        startIcon={<ShoppingCart />}
+                        onClick={() => handleAddToCartPress(index)}
+                      >
+                        Add to Cart
+                      </Button>
+                    )
+                    : (
+                      <Button
+                        variant="contained"
+                        color='error'
+                        sx={{ mt: 2, width: '100%' }}
+                        onClick={() => handleRequestRestock(index)}
+                      >
+                        Request for restock
+                      </Button>
+                    )
+                  }
                 </Box>
               ))}
           </Box>
@@ -263,13 +311,9 @@ const Home: React.FC = () => {
         {drawerContent}
       </Drawer>
 
-      {/* Error Dialog */}
-      <Dialog open={error}>
-        <DialogTitle>Error</DialogTitle>
-        <DialogContent>{errorMsg}</DialogContent>
-        <DialogActions>
-          <Button onClick={() => {setError(false); setErrorMsg('')}}>Close</Button>
-        </DialogActions>
+      {/* Alert Dialog */}
+      <Dialog open={alert}>
+        <Alert severity={messageType == "success" ? 'success' : "error"} onClose={() => {setAlert(false); setMsg('')}}>{msg}</Alert>
       </Dialog>
 
       {/* Cart Dialog */}
