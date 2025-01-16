@@ -2,11 +2,10 @@
 
 // src/components/LoginPage.tsx
 import React, { useState } from 'react';
-import './LoginPage.css';
+import './AdminLoginPage.css';
 import { auth, createUserData, getUserData, newUserSignUp, updateUserData } from '@/firebaseConfig';
 import { browserLocalPersistence, onAuthStateChanged, setPersistence, signInWithEmailAndPassword } from 'firebase/auth';
 import { Timestamp } from 'firebase/firestore';
-import Link from 'next/link';
 
 interface Transaction {
   item_name: string;
@@ -19,7 +18,7 @@ type transactions = Transaction[];
 let voucher_amount = 0;
 let transaction_history : transactions[] = []
 
-const AdminLoginPage: React.FC = () => {
+const LoginPage: React.FC = () => {
   const [popup, setPopup] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -72,7 +71,7 @@ const AdminLoginPage: React.FC = () => {
 
   return (
     <div className="page-container">
-      <h1>Sign in for faster checkout</h1>
+      <h1>Admin Login</h1>
       <h2>Sign in to Muhammadiyah Minimart</h2>
 
       <div className="login-row">
@@ -90,17 +89,12 @@ const AdminLoginPage: React.FC = () => {
     <button className="arrow-btn">→</button>
   </div>
       </div>
-
       <div className="remember-me">
         <input type="checkbox" id="remember" />
         <label htmlFor="remember">Remember me</label>
       </div>
-
-      <p><a href="#forgot">Forgot password?</a></p>
-      <p>Don’t have an Account? <a href="#create">Create yours now.</a></p>
-      <p><Link href="/adminLogin">Admin Login</Link></p>
     </div>
   );
 };
 
-export default AdminLoginPage;
+export default LoginPage;

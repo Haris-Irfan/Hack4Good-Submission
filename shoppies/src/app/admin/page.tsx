@@ -187,6 +187,10 @@ const Home: React.FC = () => {
     { label: "Vouchers", action: handleDrawerVoucherPress },
     { label: "Transaction History", action: () => console.log() },
     { label: "Sign Out", action: () => console.log("Sign Out clicked") },
+    { label: "Account Management", action: () => console.log("Sign Out clicked") },
+    { label: "Inventory Requests", action: () => console.log("Sign Out clicked") },
+    { label: "Inventory Management", action: () => console.log("Sign Out clicked") },
+    { label: "Inventory Summary", action: () => console.log("Sign Out clicked") },
   ];
 
   const addToCartDialogContent = () => {
