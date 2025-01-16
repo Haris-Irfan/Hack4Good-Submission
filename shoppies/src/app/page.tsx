@@ -1,13 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Box, Container, Typography, Button, TextField, MenuItem, FormControl, Select, InputLabel, SelectChangeEvent, Drawer, Checkbox, ListItem, List, ListItemText, IconButton, Menu } from "@mui/material";
-import { Search, ShoppingCart, FilterList } from "@mui/icons-material";
-import MenuIcon from "@mui/icons-material/Menu";
+import { Container, Typography, TextField, Box, Button, IconButton, Alert, MenuItem, FormControl, InputLabel, Select, SelectChangeEvent } from '@mui/material';
 import CloseIcon from "@mui/icons-material/Close";
 import { browserLocalPersistence, onAuthStateChanged, setPersistence, signInWithEmailAndPassword } from 'firebase/auth';
 import { auth, createUserData, getUserData, newUserSignUp, SignOut, updateUserData } from '../firebaseConfig';
 import { Timestamp } from 'firebase/firestore';
+import Router from 'next/router';
 import { useAuth } from '../AuthProvider';
 
 const randomNumberInRange = (min: number, max: number) => {
@@ -37,7 +36,6 @@ const Home: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [signUpSuccessAlert, setSignUpSuccessAlert] = useState<boolean>(false)
-  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const [purchaseCategory, setPurchaseCategory] = useState<string>("")
 
@@ -210,213 +208,91 @@ const Home: React.FC = () => {
     setPurchaseCategory(event.target.value as string);
   };
 
-  const toggleDrawer = (open: boolean) => {
-    return (event: React.MouseEvent | React.KeyboardEvent) => {
-      if (event.type === "keydown" && (event as React.KeyboardEvent).key === "Tab" || (event as React.KeyboardEvent).key === "Shift") {
-        return;
-      }
-      setDrawerOpen(open);
-    };
-  };
-  
-
-  const filterOptions = [
-    "Apparel",
-    "Bags & Shoes",
-    "Snacks",
-    "Miscellaneous",
-  ];
-
-  const shopTypeButtons = [
-    { label: "About Us", action: () => console.log("About Us clicked") },
-    { label: "Weekly Quests", action: handleWeeklyQuest },
-    { label: "Donation Streak", action: handlePurchaseStreak },
-    { label: "Redeem Rewards", action: handleRedeemRewards },
-    { label: "Sign Out", action: () => console.log("Sign Out clicked") },
-  ];
-
-  const drawerContent = (
-    <Box role="presentation" sx={{ width: 250, padding: 2 }}>
-      <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>
-        Categories
-      </Typography>
-      <List>
-        {filterOptions.map((option) => (
-          <ListItem key={option} disablePadding>
-            <Checkbox />
-            <ListItemText primary={option} />
-          </ListItem>
-        ))}
-      </List>
-      <List sx={{ mt: 1 }}>
-        {shopTypeButtons.map((button) => (
-          <ListItem key={button.label} disablePadding>
-            <Button
-              variant="text"
-              onClick={button.action}
-              sx={{
-                width: '100%',
-                justifyContent: 'flex-start',
-                textTransform: 'none',
-                fontWeight: 'bold',
-                color: 'primary.main',
-                '&:hover': { backgroundColor: 'primary.light' },
-              }}
-            >
-              {button.label}
-            </Button>
-          </ListItem>
-        ))}
-      </List>
-    </Box>
-  );
-
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'gray.100' }}>
-      {/* Header */}
-      <Box
-        component="header"
-        sx={{
-          backgroundColor: 'green',
-          color: 'white',
-          py: 4,
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          zIndex: 10,
-        }}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 4 }}>
-          {/* Left Section */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
-            <IconButton color="inherit" onClick={toggleDrawer(true)} sx={{ zIndex: 100 }}>
-              <MenuIcon />
-            </IconButton>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', mr: 2 }}>
-              Muhammadiyah Minimart
-            </Typography>
-            <TextField
-              variant="outlined"
-              placeholder="Search for products"
-              size="small"
-              sx={{
-                backgroundColor: 'white',
-                borderRadius: 1,
-                flex: 1,
-              }}
-            />
-            <IconButton color="inherit">
-              <Search />
-            </IconButton>
-          </Box>
-
-          {/* Right Section */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+    <Box className="min-h-screen flex flex-col">
+      <Box component="main" display="flex" justifyContent="center" gap={150} className="bg-gray-100 py-8">
+        <Container className="text-center">
+          <Typography variant="h4" className="mb-4">Welcome to Test</Typography>
+          <Typography variant="body1" color="textSecondary">This is a test website</Typography>
+        </Container>
+        <Container className="text-center">
+          <Typography variant="h4" className="mb-4">{auth.currentUser? auth.currentUser?.email[0].toUpperCase() : "User"}</Typography>
+          <Typography variant="body1" color="textSecondary">{points} points</Typography>
+        </Container>
+      </Box>
+      <Box component="header" className="bg-gray-800 text-left text-white py-4">
+        <Container className="flex flex-wrap items-center justify-between">
+          <Box className="flex space-x-4">
+            {['Categories', 'Travel', 'Fashion', 'Electronics', 'Health', 'Marketplace', 'Beauty'].map((item) => (
+              <Button key={item} className="text-sm font-medium hover:text-gray-300" color="inherit">
+                {item}
+              </Button>
+            ))}
             <Button
-              variant="contained"
-              sx={{
-                backgroundColor: 'white',
-                color: 'green',
-                fontWeight: 'bold',
-                '&:hover': { backgroundColor: 'lightgray' }
-              }}
-              onClick={handleLoginPress}
+              size="small" 
+              color="inherit" 
+              onClick={handleRedeemRewards} 
+              className="text-sm font-medium"
+            >
+              Redeem Rewards
+            </Button>
+            <Button 
+              size="small" 
+              color="inherit" 
+              onClick={handleWeeklyQuest} 
+              className="text-sm font-medium"
+            >
+              Weekly Quests
+            </Button>
+            <Button 
+              size="small" 
+              color="inherit" 
+              onClick={handleSimulatePurchasePress} 
+              className="text-sm font-medium"
+            >
+              Purchase
+            </Button>
+            <Button 
+              size="small" 
+              color="inherit" 
+              onClick={handlePurchaseStreak} 
+              className="text-sm font-medium"
+            >
+              Daily Purchase Streak
+            </Button>
+            <Button 
+              size="small" 
+              color="inherit" 
+              onClick={handleLoginPress} 
+              className="text-sm font-medium"
             >
               Login
             </Button>
           </Box>
-        </Box>
+        </Container>
       </Box>
 
-      {/* Main Content */}
-      <Box sx={{ display: 'flex', flexGrow: 1, pt: 16 }}>
-        {/* Product Catalog */}
-        <Box sx={{ flexGrow: 1, p: 6 }}>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 4 }}>
-            Product Catalog
-          </Typography>
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' },
-              gap: 6,
-            }}
-          >
-            {Array(40)
-              .fill(null)
-              .map((_, index) => (
-                <Box
-                  key={index}
-                  sx={{
-                    backgroundColor: 'white',
-                    p: 4,
-                    borderRadius: 2,
-                    boxShadow: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Box sx={{ height: 128, width: '100%', backgroundColor: 'gray.200', mb: 4 }}></Box>
-                  <Typography variant="body1" sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                    Product Name
-                  </Typography>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    sx={{ mt: 2, width: '100%' }}
-                    startIcon={<ShoppingCart />}
-                  >
-                    Add to Cart
-                  </Button>
-                </Box>
-              ))}
-          </Box>
-        </Box>
-      </Box>
+      {popup == 'purchase' && (
+        <Box className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <Box className="bg-white p-6 rounded shadow-md w-400 h-100">
+            <Typography variant="h6" className="mb-4">Simulate a purchase</Typography>
+            <FormControl fullWidth>
+              <InputLabel>Purchase Category</InputLabel>
+              <Select value={purchaseCategory} onChange={handlePurchaseFormChange}>
+                <MenuItem value={"travel"}>Travel</MenuItem>
+                <MenuItem value={"fashion"}>Fashion</MenuItem>
+                <MenuItem value={"electronics"}>Electronics</MenuItem>
+                <MenuItem value={"health"}>Health</MenuItem>
+                <MenuItem value={"beauty"}>Beauty</MenuItem>
+              </Select>
+            </FormControl>
 
-      {/* Weekly Quest Popup */}
-      {popup === 'weeklyQuest' && (
-        <Box
-          sx={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1300,
-          }}
-        >
-          <Box
-            sx={{
-              backgroundColor: 'white',
-              padding: 4,
-              borderRadius: 2,
-              boxShadow: 3,
-              width: '24rem',
-              textAlign: 'center',
-            }}
-          >
-            <Typography variant="h6" sx={{ marginBottom: 2, fontWeight: 'bold' }}>
-              Weekly Quests
-            </Typography>
-            <Box component="ul" sx={{ listStyleType: 'disc', paddingLeft: 2, marginBottom: 3 }}>
-              <Box component="li" sx={{ marginBottom: 1 }}>
-                10 points: Log in (1/3)
-              </Box>
-              <Box component="li" sx={{ marginBottom: 1 }}>
-                20 points: Purchase items (0/5)
-              </Box>
-              <Box component="li">
-                30 points: Visit 'Rewards' Page (1/1)
-              </Box>
-            </Box>
-            <Button
-              variant="contained"
-              color="error"
-              sx={{ marginTop: 2 }}
+            <Button onClick={handleMakePurchase}>Make Purchase</Button>
+
+            <Button 
+              variant="contained" 
+              color="error" 
+              className="mt-4"
               onClick={() => setPopup(null)}
             >
               Close
@@ -425,13 +301,86 @@ const Home: React.FC = () => {
         </Box>
       )}
 
-      {/* Drawer */}
-      <Drawer anchor="left" open={drawerOpen} onClose={toggleDrawer(false)}>
-        {drawerContent}
-      </Drawer>
+      {popup === 'weeklyQuest' && (
+        <Box className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <Box className="bg-white p-6 rounded shadow-md w-96">
+            <Typography variant="h6" className="mb-4">Weekly Quests</Typography>
+            <ul className="list-disc list-inside space-y-2">
+              <li>10 points: Log in ({successfulLogin}/{questLogin}){successfulLogin >= questLogin ? ". Quest completed! Points have been added." : ""}</li>
+              <li>20 points: Purchase items ({successfulPurchase}/{questPurchase}){successfulPurchase >= questPurchase ? ". Quest completed! Points have been added." : ""}</li>
+              <li>30 points: Visited 'Rewards' Page? ({questRewards ? "1/1). Quest completed! Points have been added." : "0/1)"}</li>
+            </ul>
+            <Button 
+              variant="contained" 
+              color="error" 
+              className="mt-4"
+              onClick={() => setPopup(null)}
+            >
+              Close
+            </Button>
+          </Box>
+        </Box>
+      )}
+
+           
+      {popup === 'login' && (
+        <Box className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <Box className="bg-white p-6 rounded shadow-md w-96">
+            <IconButton
+                className="absolute top-2 right-2"
+                onClick={() => setPopup(null)}
+            >
+                <CloseIcon/>
+            </IconButton>
+            <Typography variant="h6" align= "center" className="mb-4">
+                Login
+            </Typography>
+            {
+              signUpSuccessAlert && <Alert severity='success' onClose={() => setSignUpSuccessAlert(false)}>
+                Successfully signed up!. Please press the 'Login' Button
+              </Alert>
+            }
+            <form onSubmit={handleLogin}>
+                <Box display="flex" 
+                     flexDirection="column"
+                     justifyContent= "center"
+                     gap={2} 
+                    >
+                    <TextField
+                        label="Email"
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                    />
+                    <TextField
+                        label="Password"
+                        type="password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <Button
+                        type="submit"
+                        variant="contained"
+                        color="primary"
+                    >
+                        Login
+                    </Button>
+                    <Button onClick={handleSignUp}>Sign Up</Button>
+                    <Button onClick={SignOut}>Sign Out</Button>
+                </Box>
+            </form>
+            {error && (
+                <Typography variant="body2" color="error" align = "right" className="mb-4">
+                {error}
+                </Typography>
+            )}
+            </Box>
+        </Box>
+      )}
     </Box>
   );
 };
 
 export default Home;
-
