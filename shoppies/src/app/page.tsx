@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Typography, Button, TextField, Drawer, Checkbox, ListItem, List, ListItemText,
   IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TableContainer, Table,
-  TableHead, TableRow, TableCell, TableBody, Paper, Alert } from "@mui/material";
+  TableHead, TableRow, TableCell, TableBody, Paper, Alert, Grid2, Slider, Input } from "@mui/material";
 import { Cancel, Search, ShoppingCart } from "@mui/icons-material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { getAllInventoryData, auth, createRequestData, createTransactionData, updateInventoryData, getUserData } from '@/firebaseConfig';
@@ -29,6 +29,8 @@ const Home: React.FC = () => {
   const [cart, setCart] = useState<cartItem[]>([])
   const [products, setProducts] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
   const [filteredProducts, setFilteredProducts] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
+  const [addCartIndex, setAddCartIndex] = useState<number>(-1)
+  const [addCartQuantity, setAddCartQuantity] = useState<number>(1)
 
   const [userData, setUserData] = useState<DocumentData>()
 
@@ -98,6 +100,7 @@ const Home: React.FC = () => {
     } else {
       // admin@minimart.com, adminpassword
       if (auth.currentUser.email != "admin@minimart.com") {
+        setMessageType('error')
         setMsg("Access Denied.")
         setAlert(true)
       } else {
@@ -126,14 +129,17 @@ const Home: React.FC = () => {
     }
   }
 
-  const handleAddToCartPress = (index : number) => {
+  const handleAddToCartPress = (index : number, quantity : number) => {
     const cart_item = cart.find(x => x.item_name == filteredProducts[index].data()["item_name"])
     if (cart_item) {
-      if (cart_item.quantity < filteredProducts[index].data()["quantity"]) {
-        cart_item.quantity += 1
+      if (cart_item.quantity + quantity < filteredProducts[index].data()["quantity"]) {
+        cart_item.quantity += quantity
         setAlert(true)
         setMessageType("success")
         setMsg("Successfully added to cart!")
+        setPopup(null)
+        setAddCartQuantity(1)
+        setAddCartIndex(-1)
       } else {
         setAlert(true)
         setMessageType("error")
@@ -143,9 +149,12 @@ const Home: React.FC = () => {
       if (filteredProducts[index].data()["quantity"] > 0) {
         cart.push({
           item_name : filteredProducts[index].data()["item_name"],
-          quantity: 1,
+          quantity: quantity,
           cost : filteredProducts[index].data()["cost"]
         })
+        setPopup(null)
+        setAddCartQuantity(1)
+        setAddCartIndex(-1)
         setAlert(true)
         setMessageType("success")
         setMsg("Successfully added to cart!")
@@ -197,6 +206,32 @@ const Home: React.FC = () => {
     { label: "Admin", action: handleDrawerAdminPress },
     { label: "Sign Out", action: () => console.log("Sign Out clicked") },
   ];
+
+  const addToCartDialogContent = () => {
+    if (addCartIndex == -1) {
+      return (
+        <Dialog open={false}></Dialog>
+      )
+    }
+    
+    const item = filteredProducts[addCartIndex].data()
+    return (
+      <Dialog open={popup == 'addToCart'} maxWidth='sm' fullWidth>
+        <Box sx={{ backgroundColor: 'white', p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center',}}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 4 }}>{item.item_name}</Typography>
+          <Box sx={{ height: 128, width: '100%', backgroundColor: 'gray.200', mb: 4 }}></Box>
+          <Box sx={{ width: 300, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+            <Slider min={1} max={item.quantity} step={1} value={addCartQuantity} onChange={(e : any) => setAddCartQuantity(e.target.value)}/>
+            <TextField disabled variant='outlined' size='small' value={addCartQuantity} sx={{width: 60}}></TextField>
+          </Box>
+        </Box>
+        <DialogActions sx = {{ justifyContent: 'space-between' }}>
+          <Button onClick={() => {setPopup(null); setAddCartQuantity(-1)}}>Close</Button>
+          <Button onClick={() => handleAddToCartPress(addCartIndex, addCartQuantity)}>Add to Cart</Button>
+        </DialogActions>
+      </Dialog>
+    )
+  }
 
   const drawerContent = (
     <Box role="presentation" sx={{ width: 250, padding: 2 }}>
@@ -343,7 +378,8 @@ const Home: React.FC = () => {
                         color="primary"
                         sx={{ mt: 2, width: '100%' }}
                         startIcon={<ShoppingCart />}
-                        onClick={() => handleAddToCartPress(index)}
+                        // onClick={() => handleAddToCartPress(index)}
+                        onClick={() => { setAddCartIndex(index); setAddCartQuantity(1); setPopup("addToCart") }}
                       >
                         Add to Cart
                       </Button>
@@ -374,6 +410,12 @@ const Home: React.FC = () => {
       <Dialog open={alert}>
         <Alert severity={messageType == "success" ? 'success' : "error"} onClose={() => {setAlert(false); setMsg('')}}>{msg}</Alert>
       </Dialog>
+
+      {/* Add To Cart Dialog */}
+      {
+        addToCartDialogContent()
+      }
+
 
       {/* Cart Dialog */}
       <Dialog open={popup == "cart"} maxWidth='sm' fullWidth>
