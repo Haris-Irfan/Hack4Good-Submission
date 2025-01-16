@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { collection, addDoc, getFirestore, getDocs, query, where, Timestamp, updateDoc, getDoc, DocumentReference } from 'firebase/firestore'
+import { collection, addDoc, getFirestore, getDocs, query, where, Timestamp, updateDoc, DocumentReference } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, getAuth, signOut, onAuthStateChanged, User, browserLocalPersistence, setPersistence } from 'firebase/auth';
 
 const firebaseConfig = {
@@ -17,13 +17,13 @@ export const auth = getAuth(app);
 
 let currentUser: User | null = null;
 
-// onAuthStateChanged(auth, (user) => {
-//   if (user) {
-//     currentUser = user;
-//   } else {
-//     currentUser = null;
-//   }
-// });
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    currentUser = user;
+  } else {
+    currentUser = null;
+  }
+});
 
 export async function newUserSignUp(email : string, password : string) {
     try {
@@ -198,7 +198,7 @@ export async function updateInventoryData(item_name : string, quantity : number,
     }
 }
 
-export async function getInventoryData(item_name : string) {
+export async function getItemInventoryData(item_name : string) {
     try {
         const original_docs =  await getDocs(
             query(collection(database, "inventory"), where("item_name", "==", item_name))
@@ -211,8 +211,7 @@ export async function getInventoryData(item_name : string) {
     }
 }
 
-export async function getLast7DaysInventoryData() {
-    // returns an array of all the request documents from the past 7 days
+export async function getAllInventoryData() {
     try {
         const docs = await getDocs(
             query(collection(database, "inventory"))
