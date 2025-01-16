@@ -1,18 +1,24 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Box, Typography, Button, TextField, Drawer, Checkbox, ListItem, List, ListItemText, IconButton } from "@mui/material";
+import { Box, Typography, Button, TextField, Drawer, Checkbox, ListItem, List, ListItemText, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TableContainer, Table, TableHead, TableRow, TableCell, TableBody } from "@mui/material";
 import { Search, ShoppingCart } from "@mui/icons-material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { getAllInventoryData } from '@/firebaseConfig';
+import { getAllInventoryData, auth } from '@/firebaseConfig';
+import { useRouter } from 'next/navigation';
 
 const Home: React.FC = () => {
   const [popup, setPopup] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchBar, setSearchBar] = useState<string>('')
 
-  const products_data = getAllInventoryData()
+  const [errorMsg, setErrorMsg] = useState<string>('')
+  const [error, setError] = useState<boolean>(false)
 
+  const [cart, setCart] = useState<[]>([])
+
+  const router = useRouter()
+  const products_data = getAllInventoryData()
 
   const toggleDrawer = (open: boolean) => {
     return (event: React.MouseEvent | React.KeyboardEvent) => {
@@ -30,10 +36,30 @@ const Home: React.FC = () => {
     "Miscellaneous",
   ];
 
+  const handleDrawerAdminPress = () => {
+    if (!auth.currentUser) {
+      setErrorMsg("Access Denied. Please login first.")
+      setError(true)
+    } else {
+      // admin@minimart.com, adminpassword
+      if (auth.currentUser.email != "admin@minimart.com") {
+        setErrorMsg("Access Denied.")
+        setError(true)
+      } else {
+        console.log("Push to admin console page")
+      }
+    }
+  }
+
+  const handleCartPress = () => {
+    setPopup("cart")
+  }
+
   const shopTypeButtons = [
     { label: "About Us", action: () => console.log("About Us clicked") },
     { label: "Vouchers", action: () => console.log() },
     { label: "Transaction History", action: () => console.log() },
+    { label: "Admin", action: handleDrawerAdminPress },
     { label: "Sign Out", action: () => console.log("Sign Out clicked") },
   ];
 
@@ -96,7 +122,7 @@ const Home: React.FC = () => {
               <MenuIcon />
             </IconButton>
             <Typography variant="h6" sx={{ fontWeight: 'bold', mr: 2 }}>
-              HuHuHaris Minimart
+              Muhammadiyah Minimart
             </Typography>
             <TextField
               value={searchBar}
@@ -113,6 +139,9 @@ const Home: React.FC = () => {
             <IconButton color="inherit">
               <Search />
             </IconButton>
+            <IconButton color='inherit' onClick={handleCartPress}>
+              <ShoppingCart/>
+            </IconButton>
           </Box>
 
           {/* Right Section */}
@@ -125,7 +154,7 @@ const Home: React.FC = () => {
                 fontWeight: 'bold',
                 '&:hover': { backgroundColor: 'lightgray' }
               }}
-              onClick={() => console.log()}
+              onClick={() => router.push("/login")}
             >
               Login
             </Button>
@@ -184,6 +213,17 @@ const Home: React.FC = () => {
       <Drawer anchor="left" open={drawerOpen} onClose={toggleDrawer(false)}>
         {drawerContent}
       </Drawer>
+
+      {/* Error Dialog */}
+      <Dialog open={error}>
+        <DialogTitle>Error</DialogTitle>
+        <DialogContent>{errorMsg}</DialogContent>
+        <DialogActions>
+          <Button onClick={() => {setError(false); setErrorMsg('')}}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Cart Dialog */}
     </Box>
   );
 };

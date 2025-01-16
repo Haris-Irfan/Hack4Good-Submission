@@ -27,8 +27,7 @@ onAuthStateChanged(auth, (user) => {
 
 export async function newUserSignUp(email : string, password : string) {
     try {
-        const response = await createUserWithEmailAndPassword(auth, email, password)
-        return response
+        await createUserWithEmailAndPassword(auth, email, password)
     } catch (error) {
         console.error("Error: ", error)
     }
@@ -36,7 +35,7 @@ export async function newUserSignUp(email : string, password : string) {
 
 export async function SignOut() {
     try {
-        const response = await signOut(auth)
+        await signOut(auth)
     } catch (error) {
         console.error("Error: ", error)
     }
@@ -54,12 +53,12 @@ interface Transaction {
 
 type transactions = Transaction[];
 
-export async function createUserData(user_email : string, voucher_amount : number, transaction_history : transactions[]) {
+export async function createUserData(voucher_amount : number, transaction_history : transactions[]) {
     try {
         if (!currentUser) {
             throw new Error("No user signed in");
         }
-        const response = await addDoc(collection(database, "userData"), {
+        await addDoc(collection(database, "userData"), {
             "user_email" : currentUser.email,
             "voucher_amount" : voucher_amount,
             "transaction_history" : transaction_history
@@ -70,7 +69,7 @@ export async function createUserData(user_email : string, voucher_amount : numbe
     }
 }
 
-export async function updateUserData(user_email : string, voucher_amount : number, transaction_history : transactions[]) {
+export async function updateUserData(voucher_amount : number, transaction_history : transactions[]) {
     try {
         if (!currentUser) {
             throw new Error("No user signed in");
@@ -80,7 +79,7 @@ export async function updateUserData(user_email : string, voucher_amount : numbe
             throw new Error("No user data found");
         }
         const docRef = doc.docs[0].ref
-        const response = await updateDoc(docRef, {
+        await updateDoc(docRef, {
             "user_email" : currentUser.email,
             "voucher_amount" : voucher_amount,
             "transaction_history" : transaction_history
@@ -93,7 +92,6 @@ export async function updateUserData(user_email : string, voucher_amount : numbe
 
 export async function getUserData() {
     try {
-        //ignore error: user must be signed in for this function to be called
         if (!currentUser) {
           throw new Error("No user signed in");
         }
@@ -104,12 +102,12 @@ export async function getUserData() {
     }
 }
 
-export async function createTransactionData(userEmail : string, purchase : { item_name: string, quantity: number }[], purchase_date : Timestamp) {
+export async function createTransactionData(purchase : { item_name: string, quantity: number }[], purchase_date : Timestamp) {
     try {
         if (!currentUser) {
             throw new Error("No user signed in");
         }
-        const response = await addDoc(collection(database, "transactions"), {
+        await addDoc(collection(database, "transactions"), {
             "userEmail" : currentUser.email,
             "purchase" : purchase,
             "purchase_date" : purchase_date
@@ -120,7 +118,7 @@ export async function createTransactionData(userEmail : string, purchase : { ite
     }
 }
 
-export async function updateTransactionData(userEmail : string, purchase : { item_name: string, quantity: number }[], purchase_date : Timestamp) {
+export async function updateTransactionData(purchase : { item_name: string, quantity: number }[], purchase_date : Timestamp) {
     try {
         if (!currentUser) {
             throw new Error("No user signed in");
@@ -130,7 +128,7 @@ export async function updateTransactionData(userEmail : string, purchase : { ite
             throw new Error("No transaction data found");
         }
         const docRef = doc.docs[0].ref
-        const response = await updateDoc(docRef, {
+        await updateDoc(docRef, {
             "user_email" : currentUser.email,
             "purchase" : purchase,
             "purchase_date" : purchase_date

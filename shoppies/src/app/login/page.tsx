@@ -9,13 +9,13 @@ const LoginPage: React.FC = () => {
   return (
     <div className="page-container">
       <h1>Sign in for faster checkout.</h1>
-      <h2>Sign in to Shoppies</h2>
+      <h2>Sign in to Muhammadiyah Minimart</h2>
 
       <div className="login-row">
         <input
           className="login-input"
           type="text"
-          placeholder="Email or Phone Number"
+          placeholder="Email"
         />
       <div className="password-row">
         <input
