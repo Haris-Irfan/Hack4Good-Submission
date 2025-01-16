@@ -1,13 +1,19 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Box, Typography, Button, TextField, Drawer, Checkbox, ListItem, List, ListItemText, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TableContainer, Table, TableHead, TableRow, TableCell, TableBody } from "@mui/material";
+import React, { useEffect, useState } from 'react';
+import { Box, Typography, Button, TextField, Drawer, Checkbox, ListItem, List, ListItemText, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Paper, Select } from "@mui/material";
 import { Search, ShoppingCart } from "@mui/icons-material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { getAllInventoryData, auth } from '@/firebaseConfig';
 import { useRouter } from 'next/navigation';
+import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 
 const Home: React.FC = () => {
+  interface cartItem {
+    item_name : string,
+    quantity : number
+  }
+
   const [popup, setPopup] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchBar, setSearchBar] = useState<string>('')
@@ -15,10 +21,25 @@ const Home: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string>('')
   const [error, setError] = useState<boolean>(false)
 
-  const [cart, setCart] = useState<[]>([])
-
+  const [cart, setCart] = useState<cartItem[]>([{
+    item_name : "test", quantity : 3
+  }])
+  const [products, setProducts] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
   const router = useRouter()
-  const products_data = getAllInventoryData()
+
+  useEffect(() => {
+    const getProducts = async () => {
+      try {
+        const data = await getAllInventoryData()
+        if (data) {
+          setProducts(data)
+        }
+      } catch (error) {
+        console.error(error)
+      }
+    }
+    getProducts()
+  }, [])
 
   const toggleDrawer = (open: boolean) => {
     return (event: React.MouseEvent | React.KeyboardEvent) => {
@@ -53,6 +74,25 @@ const Home: React.FC = () => {
 
   const handleCartPress = () => {
     setPopup("cart")
+  }
+
+  const handleAddToCartPress = (index : number) => {
+    const cart_item = cart.find(x => x.item_name == products[index].data()["item_name"])
+    if (cart_item) {
+      if (cart_item.quantity < products[index].data()["quantity"]) {
+        cart_item.quantity += 1
+      } else {
+        setError(true)
+        setErrorMsg("Exceeds inventory quantity!")
+      }
+    } else {
+      if (products[index].data()["quantity"] > 0) {
+        cart.push({
+          item_name : products[index].data()["item_name"],
+          quantity: 1
+        })
+      }
+    }
   }
 
   const shopTypeButtons = [
@@ -176,9 +216,8 @@ const Home: React.FC = () => {
               gap: 6,
             }}
           >
-            {Array(40)
-              .fill(null)
-              .map((_, index) => (
+            {products
+              .map((x, index) => (
                 <Box
                   key={index}
                   sx={{
@@ -193,13 +232,14 @@ const Home: React.FC = () => {
                 >
                   <Box sx={{ height: 128, width: '100%', backgroundColor: 'gray.200', mb: 4 }}></Box>
                   <Typography variant="body1" sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                    Product Name
+                    {x.data()["item_name"]}
                   </Typography>
                   <Button
                     variant="contained"
                     color="primary"
                     sx={{ mt: 2, width: '100%' }}
                     startIcon={<ShoppingCart />}
+                    onClick={() => handleAddToCartPress(index)}
                   >
                     Add to Cart
                   </Button>
@@ -224,6 +264,34 @@ const Home: React.FC = () => {
       </Dialog>
 
       {/* Cart Dialog */}
+      <Dialog open={popup == "cart"} maxWidth='sm' fullWidth>
+        <DialogTitle>Shopping Cart</DialogTitle>
+        <DialogContent>
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell align='center'>Item</TableCell>
+                  <TableCell align='right'>Quantity</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                  {
+                    cart.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell align='center'>{item.item_name}</TableCell>
+                        <TableCell align='right'>{item.quantity}</TableCell>
+                      </TableRow>
+                    ))
+                  }
+                </TableBody>
+            </Table>
+          </TableContainer>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPopup(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
