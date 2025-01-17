@@ -195,13 +195,12 @@ const Home: React.FC = () => {
       setMsg('Please enter valid voucher redemption amount.')
       return
     }
-
-    const checkout_cart : any[] = cart.map(x => {
-      const new_item : any = {...x}
-      delete new_item.cost
-      return new_item
-    })
-    
+    const checkout_cart: any[] = cart.map((x) => {
+      const new_item: any = { ...x };
+      delete new_item.cost; 
+      return new_item;
+    });
+  
     try {
       await createTransactionData(checkout_cart, Timestamp.now())
       cart.forEach(async x => {
@@ -228,9 +227,9 @@ const Home: React.FC = () => {
       setPopup(null)
       setUseVoucher(0)
     } catch (error) {
-      setAlert(true)
-      setMessageType("error")
-      setMsg(String(error))
+      setAlert(true);
+      setMessageType("error");
+      setMsg(`Error: ${(error as Error).message}`);
     }
   }
 
