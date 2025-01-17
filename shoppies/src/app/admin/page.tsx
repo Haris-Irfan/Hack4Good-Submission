@@ -1,16 +1,14 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Button, TextField, Drawer, Checkbox, ListItem, List, ListItemText,
+import { Box, Typography, Button, TextField, Drawer,ListItem, List,
   IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TableContainer, Table,
-  TableHead, TableRow, TableCell, TableBody, Paper, Alert, Grid2, Slider, Input } from "@mui/material";
-import { Cancel, Search, ShoppingCart } from "@mui/icons-material";
+  TableHead, TableRow, TableCell, TableBody, Paper, Alert,} from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { getAllInventoryData, auth, createRequestData, createTransactionData, updateInventoryData, getUserData, getAllUserData } from '@/firebaseConfig';
+import { getAllInventoryData, auth, getUserData, getAllUserData } from '@/firebaseConfig';
 import { useRouter } from 'next/navigation';
-import { QueryDocumentSnapshot, DocumentData, Timestamp } from 'firebase/firestore';
-import { indexedDBLocalPersistence } from 'firebase/auth/cordova';
-import { suspendUser } from '@/firebaseAdmin';
+import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
+import { isUserSuspended, reenableUser, suspendUser } from '@/firebaseAdminApiCalls';
 
 const Home: React.FC = () => {
 
@@ -47,7 +45,6 @@ const Home: React.FC = () => {
         if (data) {
           setAllUserData(data)
         }
-        console.log(allUserData)
       } catch (error) {
         console.error(error)
       }
@@ -69,7 +66,6 @@ const Home: React.FC = () => {
       }
     }
     getProducts()
-    console.log(products)
   }, [])
 
   useEffect(() => {
@@ -115,7 +111,21 @@ const Home: React.FC = () => {
       setAlert(true)
     } catch (error) {
       setMessageType('error')
-      setMsg("Failed to suspend user")
+      setMsg("Failed to suspend user" + error)
+      setAlert(true)
+    }
+  }
+
+  const handleReenableUser = async (index : number) => {
+    const user_email = allUserData[index].data().user_email
+    try {
+      await reenableUser(user_email)
+      setMessageType('success')
+      setMsg("Successfully re-enabled user")
+      setAlert(true)
+    } catch (error) {
+      setMessageType('error')
+      setMsg("Failed to re-enable user" + error)
       setAlert(true)
     }
   }
@@ -228,7 +238,8 @@ const Home: React.FC = () => {
                         </List>
                       </TableCell>
                       <TableCell align='center'>
-                        <Button>Suspend User</Button>
+                        <Button onClick={e => {e.preventDefault(); handleSuspendUser(index)}}>Suspend User</Button>
+                        <Button onClick={e => {e.preventDefault(); handleReenableUser(index)}}>Re-enable User</Button>
                         <Button>Reset Password</Button>
                       </TableCell>
                     </TableRow>
