@@ -160,7 +160,7 @@ export async function getTransactionData() {
 
 export async function createInventoryData(item_name : string, quantity : number, cost : number) {
     try {
-        const log_entry = String("Added " + quantity + " " + item_name)
+        const log_entry = String("Added " + quantity + " " + item_name + " on " + Timestamp.now().toDate().toLocaleString())
         await addDoc(collection(database, "inventory"), {
             "item_name" :  item_name,
             "quantity" : quantity,

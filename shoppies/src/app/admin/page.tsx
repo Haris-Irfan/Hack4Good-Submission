@@ -6,7 +6,7 @@ import { Box, Typography, Button, TextField, Drawer,ListItem, List,
   TableHead, TableRow, TableCell, TableBody, Alert,
   Slider,} from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { changeCostOfInventoryItem, getAllInventoryData, getAllUserData, updateInventoryData } from '@/firebaseConfig';
+import { changeCostOfInventoryItem, createInventoryData, getAllInventoryData, getAllUserData, updateInventoryData } from '@/firebaseConfig';
 import { useRouter } from 'next/navigation';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { reenableUser, suspendUser, updateUserPassword } from '@/firebaseAdminApiCalls';
@@ -24,6 +24,7 @@ const Home: React.FC = () => {
   const [targetProduct, setTargetProduct] = useState<string>('')
   const [adjustProductQuantity, setAdjustProductQuantity] = useState<number>(1)
   const [adjustPrice, setAdjustPrice] = useState<number>(1)
+  const [itemName, setItemName] = useState<string>('')
 
   const [pageView, setPageView] = useState<string>("Account Management")
 
@@ -182,6 +183,26 @@ const Home: React.FC = () => {
     } catch (error) {
       setMessageType('error')
       setMsg("Failed to update item price" + error)
+      setAlert(true)
+    }
+  }
+
+  const handleAddNewItem = async () => {
+    try {
+      await createInventoryData(itemName, adjustProductQuantity, adjustPrice)
+      const data = await getAllInventoryData()
+      if (data) {
+        setProducts(data)
+      }
+      setMessageType('success')
+      setMsg("Successfully added new item to inventory")
+      setAlert(true)
+      setPopup(null)
+      setAdjustProductQuantity(1)
+      setAdjustPrice(1)
+    } catch (error) {
+      setMessageType('error')
+      setMsg("Failed to add new item to inventory" + error)
       setAlert(true)
     }
   }
@@ -348,7 +369,7 @@ const Home: React.FC = () => {
                   }
                 </TableBody>
               </Table>
-              <Button sx={{margin:2}}>New Item</Button>
+              <Button sx={{margin:2}} onClick={() => setPopup('newItem')}>New Item</Button>
             </Box>
           }
           
@@ -403,6 +424,31 @@ const Home: React.FC = () => {
         <DialogActions sx = {{ justifyContent: 'space-between' }}>
           <Button onClick={() => setPopup(null)}>Close</Button>
           <Button onClick={handleUpdatePrice}>Update</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* New Item Dialog */}
+      <Dialog open={popup == 'newItem'} maxWidth='md' fullWidth>
+        <DialogTitle sx={{textAlign:'center'}}>Adjust New Item to Inventory</DialogTitle>
+          <Box sx={{ display:'flex', flexDirection:'row', gap: 2, alignSelf:'center', margin:1}}>
+            <Typography sx={{marginTop:1}}>Item Name:</Typography>
+            <TextField placeholder='Enter Item Name' value={itemName} onChange={e => setItemName(e.target.value)} size='small'/>
+          </Box>
+
+          <Box sx={{ width: 300, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf:'center', margin:1 }}>
+            <Typography>Quantity:</Typography>
+            <Slider min={1} max={200} step={1} value={adjustProductQuantity} onChange={(e : any) => setAdjustProductQuantity(e.target.value)}/>
+            <TextField disabled variant='outlined' size='small' value={adjustProductQuantity} sx={{width: 120}}></TextField>
+          </Box>
+          
+          <Box sx={{ width: 300, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf:'center', margin: 1 }}>
+            <Typography>Price:</Typography>
+            <Slider min={0.01} max={300} step={0.01} value={adjustPrice} onChange={(e : any) => setAdjustPrice(e.target.value)}/>
+            <TextField disabled variant='outlined' size='small' value={adjustPrice} sx={{width: 160}}></TextField>
+          </Box>
+        <DialogActions sx = {{ justifyContent: 'space-between' }}>
+          <Button onClick={() => setPopup(null)}>Close</Button>
+          <Button onClick={handleAddNewItem}>Add Item</Button>
         </DialogActions>
       </Dialog>
 
