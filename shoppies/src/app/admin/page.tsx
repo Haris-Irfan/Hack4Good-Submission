@@ -10,8 +10,7 @@ import { Box, Typography, Button, TextField, Drawer,ListItem, List,
   Paper,} from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 
-import { changeCostOfInventoryItem, createInventoryData, createUserData, createUserDataViaAdmin, getAllInventoryData, getAllUserData, getLast7DaysRequestData, getPendingRequestData, getRequestData, SignOut, updateInventoryData, updateRequestData } from '@/firebaseConfig';
-
+import { changeCostOfInventoryItem, createInventoryData, createUserData, createUserDataViaAdmin, getAllInventoryData, getAllUserData, getLast7DaysRequestData, getPendingRequestData, getRequestData, getTransactionDataByEmail, SignOut, updateInventoryData, updateRequestData } from '@/firebaseConfig';
 import { useRouter } from 'next/navigation';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { createNewUser, reenableUser, suspendUser, updateUserPassword } from '@/firebaseAdminApiCalls';
@@ -39,7 +38,8 @@ const Home: React.FC = () => {
 
   const [pageView, setPageView] = useState<string>("Account Management")
 
-  const [allUserData, setAllUserData] = useState<DocumentData[]>([])
+  const [usersTransHist, setUsersTransHist] = useState()
+  const [allUserData, setAllUserData] = useState<any[]>([])
   const [targetUserEmail, setTargetUserEmail] = useState<string>('')
   const [password, setPassword] = useState<string>('')
 
@@ -51,6 +51,11 @@ const Home: React.FC = () => {
         const data = await getAllUserData()
         if (data) {
           setAllUserData(data)
+          const email_list = data.map(x => x.data().user_email)
+          const txn_hist_list : any = await Promise.all(email_list.map(async (x) => {
+            return await getTransactionDataByEmail(x)
+          }))
+          setUsersTransHist(txn_hist_list)
         }
       } catch (error) {
         console.error(error)
@@ -243,7 +248,7 @@ const Home: React.FC = () => {
   const handleAddNewUser = async () => {
     try {
       await createNewUser(itemName, password)
-      await createUserDataViaAdmin(itemName, 0.00, [])
+      await createUserDataViaAdmin(itemName, 0.00)
       const data = await getAllUserData()
       if (data) {
         setAllUserData(data)
@@ -310,6 +315,14 @@ const Home: React.FC = () => {
       setMsg("Failed to update request" + error)
       setAlert(true)
     }
+  }
+
+  const create_purchase_string = (arr : any[]) => {
+    let new_string : string = ''
+    for (let i = 0; i < arr.length; i++) {
+      new_string = new_string + arr[i].quantity + "x " + arr[i].item_name + ", "
+    }
+    return new_string
   }
 
   const shopTypeButtons = [
@@ -409,9 +422,12 @@ const Home: React.FC = () => {
                         <TableCell align='center'>
                           <List>
                             {
-                              item.data().transaction_history.map((entry : any, id : number) => (
-                                <ListItem key={id} sx={{ justifyContent: 'center' }}>
-                                  <Typography variant='body2'>{entry.quantity} {entry.item_name} was purchased on {entry.purchase_date.toDate().toLocaleString()}</Typography>
+                              usersTransHist && usersTransHist[index] &&
+                              usersTransHist[index].map((x : any, id : number) => (
+                                <ListItem key={id} sx={{justifyContent:'center'}}>
+                                  <Typography variant='body2'>
+                                    Purchased {create_purchase_string(x.data().purchase)} on {x.data().purchase_date.toDate().toLocaleString()}
+                                  </Typography>
                                 </ListItem>
                               ))
                             }
