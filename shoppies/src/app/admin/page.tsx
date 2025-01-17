@@ -8,7 +8,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import { getAllInventoryData, auth, getUserData, getAllUserData } from '@/firebaseConfig';
 import { useRouter } from 'next/navigation';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
-import { isUserSuspended, reenableUser, suspendUser } from '@/firebaseAdminApiCalls';
+import { isUserSuspended, reenableUser, suspendUser, updateUserPassword } from '@/firebaseAdminApiCalls';
 
 const Home: React.FC = () => {
 
@@ -29,12 +29,11 @@ const Home: React.FC = () => {
   const [products, setProducts] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
   const [filteredProducts, setFilteredProducts] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
 
-
-  const [userData, setUserData] = useState<DocumentData>()
-
   const [pageView, setPageView] = useState<string>("Account Management")
 
   const [allUserData, setAllUserData] = useState<DocumentData[]>([])
+  const [targetUserEmail, setTargetUserEmail] = useState<string>('')
+  const [password, setPassword] = useState<string>('')
 
   const router = useRouter()
 
@@ -130,8 +129,21 @@ const Home: React.FC = () => {
     }
   }
 
-
-  
+  const handleResetPassword = async () => {
+    try {
+      await updateUserPassword(targetUserEmail, password)
+      setMessageType('success')
+      setMsg("Successfully updated user password")
+      setAlert(true)
+      setPopup(null)
+      setTargetUserEmail('')
+      setPassword('')
+    } catch (error) {
+      setMessageType('error')
+      setMsg("Failed to update user password" + error)
+      setAlert(true)
+    }
+  }
 
   const shopTypeButtons = [
     { label: "Account Management", action: () => console.log("Sign Out clicked") },
@@ -240,7 +252,7 @@ const Home: React.FC = () => {
                       <TableCell align='center'>
                         <Button onClick={e => {e.preventDefault(); handleSuspendUser(index)}}>Suspend User</Button>
                         <Button onClick={e => {e.preventDefault(); handleReenableUser(index)}}>Re-enable User</Button>
-                        <Button>Reset Password</Button>
+                        <Button onClick={() => {setPopup("resetPW"); setTargetUserEmail(item.data().user_email)}}>Reset Password</Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -263,43 +275,14 @@ const Home: React.FC = () => {
       </Dialog>
 
  
-
-
-      {/* Cart Dialog */}
-      <Dialog open={popup == "cart"} maxWidth='sm' fullWidth>
-        <DialogTitle>Shopping Cart</DialogTitle>
-        <DialogContent>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Item</TableCell>
-                  <TableCell>Quantity</TableCell>
-                  <TableCell>Cost of 1 item</TableCell>
-                  <TableCell/>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                  
-                </TableBody>
-            </Table>
-          </TableContainer>
-        </DialogContent>
-        <Typography variant='body2' sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-          Total cost:
-        </Typography>
+      {/* Reset Password Dialog */}
+      <Dialog open={popup =='resetPW'} maxWidth='md' fullWidth>
+        <DialogTitle>Reset Password for {targetUserEmail}</DialogTitle>
+        <TextField placeholder='Enter new password' value={password} onChange={e => setPassword(e.target.value)} sx={{margin:2}}/>
         <DialogActions sx = {{ justifyContent: 'space-between' }}>
           <Button onClick={() => setPopup(null)}>Close</Button>
+          <Button onClick={handleResetPassword}>Update Password</Button>
         </DialogActions>
-      </Dialog>
-
-      {/* Voucher Dialog */}
-      <Dialog open={popup == "vouchers"}>
-          <DialogTitle>Vouchers</DialogTitle>
-          <DialogContent>Voucher Amount: {userData ? userData["voucher_amount"] : ""}</DialogContent>
-          <DialogActions>
-            <Button onClick={() => setPopup(null)}>Close</Button>
-          </DialogActions>
       </Dialog>
 
     </Box>
