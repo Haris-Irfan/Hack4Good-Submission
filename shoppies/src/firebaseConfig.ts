@@ -103,6 +103,15 @@ export async function getUserData() {
     }
 }
 
+export async function getAllUserData() {
+    try {
+        const response = await getDocs(query(collection(database, "userData")))
+        return response.docs
+    } catch (error) {
+        console.log("Error: ", error)
+    }
+}
+
 export async function createTransactionData(purchase : { item_name: string, quantity: number }[], purchase_date : Timestamp) {
     // calling function must handle a possible error
     if (!currentUser) {

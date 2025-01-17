@@ -6,9 +6,11 @@ import { Box, Typography, Button, TextField, Drawer, Checkbox, ListItem, List, L
   TableHead, TableRow, TableCell, TableBody, Paper, Alert, Grid2, Slider, Input } from "@mui/material";
 import { Cancel, Search, ShoppingCart } from "@mui/icons-material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { getAllInventoryData, auth, createRequestData, createTransactionData, updateInventoryData, getUserData } from '@/firebaseConfig';
+import { getAllInventoryData, auth, createRequestData, createTransactionData, updateInventoryData, getUserData, getAllUserData } from '@/firebaseConfig';
 import { useRouter } from 'next/navigation';
 import { QueryDocumentSnapshot, DocumentData, Timestamp } from 'firebase/firestore';
+import { indexedDBLocalPersistence } from 'firebase/auth/cordova';
+import { suspendUser } from '@/firebaseAdmin';
 
 const Home: React.FC = () => {
 
@@ -26,15 +28,33 @@ const Home: React.FC = () => {
   const [msg, setMsg] = useState<string>('')
   const [alert, setAlert] = useState<boolean>(false)
 
-  const [cart, setCart] = useState<cartItem[]>([])
   const [products, setProducts] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
   const [filteredProducts, setFilteredProducts] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
-  const [addCartIndex, setAddCartIndex] = useState<number>(-1)
-  const [addCartQuantity, setAddCartQuantity] = useState<number>(1)
+
 
   const [userData, setUserData] = useState<DocumentData>()
 
+  const [pageView, setPageView] = useState<string>("Account Management")
+
+  const [allUserData, setAllUserData] = useState<DocumentData[]>([])
+
   const router = useRouter()
+
+  useEffect(() => {
+    const getAllUserAccounts = async () => {
+      try {
+        const data = await getAllUserData()
+        if (data) {
+          setAllUserData(data)
+        }
+        console.log(allUserData)
+      } catch (error) {
+        console.error(error)
+      }
+    }
+    getAllUserAccounts()
+    
+  }, [])
 
   useEffect(() => {
     const getProducts = async () => {
@@ -49,6 +69,7 @@ const Home: React.FC = () => {
       }
     }
     getProducts()
+    console.log(products)
   }, [])
 
   useEffect(() => {
@@ -85,153 +106,38 @@ const Home: React.FC = () => {
     };
   };
   
-  const filterOptions = [
-    "Apparel",
-    "Bags & Shoes",
-    "Snacks",
-    "Miscellaneous",
-  ];
-
-  const handleDrawerVoucherPress = () => {
-    if (!auth.currentUser) {
+  const handleSuspendUser = async (index : number) => {
+    const user_email = allUserData[index].data().user_email
+    try {
+      await suspendUser(user_email)
+      setMessageType('success')
+      setMsg("Successfully suspended user")
+      setAlert(true)
+    } catch (error) {
       setMessageType('error')
-      setMsg("Access Denied. Please login first.")
+      setMsg("Failed to suspend user")
       setAlert(true)
-    } else {
-      setPopup("vouchers")
     }
   }
 
-  const handleCartPress = () => {
-    if (cart.length == 0) {
-      setAlert(true)
-      setMessageType("error")
-      setMsg("No items in cart yet!")
-    } else {
-      setPopup("cart")
-    }
-  }
 
-  const handleAddToCartPress = (index : number, quantity : number) => {
-    const cart_item = cart.find(x => x.item_name == filteredProducts[index].data()["item_name"])
-    if (cart_item) {
-      if (cart_item.quantity + quantity < filteredProducts[index].data()["quantity"]) {
-        cart_item.quantity += quantity
-        setAlert(true)
-        setMessageType("success")
-        setMsg("Successfully added to cart!")
-        setPopup(null)
-        setAddCartQuantity(1)
-        setAddCartIndex(-1)
-      } else {
-        setAlert(true)
-        setMessageType("error")
-        setMsg("Exceeds inventory quantity!")
-      }
-    } else {
-      if (filteredProducts[index].data()["quantity"] > 0) {
-        cart.push({
-          item_name : filteredProducts[index].data()["item_name"],
-          quantity: quantity,
-          cost : filteredProducts[index].data()["cost"]
-        })
-        setPopup(null)
-        setAddCartQuantity(1)
-        setAddCartIndex(-1)
-        setAlert(true)
-        setMessageType("success")
-        setMsg("Successfully added to cart!")
-      }
-    }
-  }
-
-  const handleRequestRestock = async (index : number) => {
-    const item_name = filteredProducts[index].data()["item_name"]
-    try {
-      await createRequestData(item_name)
-      setAlert(true)
-      setMessageType("success")
-      setMsg("Successfully created a restock request!")
-    } catch (error) {
-      setAlert(true)
-      setMessageType("error")
-      setMsg(String(error))
-    }
-  }
-
-  const handleCheckOutPress = async () => {
-    const checkout_cart : any[] = cart.map(x => {
-      const new_item : any = {...x}
-      delete new_item.cost
-      return new_item
-    })
-    
-    try {
-      await createTransactionData(checkout_cart, Timestamp.now())
-      cart.forEach(async x => {
-        await updateInventoryData(x.item_name, x.quantity, 0)
-      })
-      setAlert(true)
-      setMessageType("success")
-      setMsg("Successfully made purchase!")
-      setCart([])
-    } catch (error) {
-      setAlert(true)
-      setMessageType("error")
-      setMsg(String(error))
-    }
-  }
+  
 
   const shopTypeButtons = [
-    { label: "About Us", action: () => console.log("About Us clicked") },
-    { label: "Vouchers", action: handleDrawerVoucherPress },
-    { label: "Transaction History", action: () => console.log() },
-    { label: "Sign Out", action: () => console.log("Sign Out clicked") },
     { label: "Account Management", action: () => console.log("Sign Out clicked") },
-    { label: "Inventory Requests", action: () => console.log("Sign Out clicked") },
+    { label: "Product Requests", action: () => console.log("Sign Out clicked") },
+    { label: "Product Requests Summary", action: () => console.log("Sign Out clicked") },
     { label: "Inventory Management", action: () => console.log("Sign Out clicked") },
     { label: "Inventory Summary", action: () => console.log("Sign Out clicked") },
+    { label: "Sign Out", action: () => console.log("Sign Out clicked") },
   ];
 
-  const addToCartDialogContent = () => {
-    if (addCartIndex == -1) {
-      return (
-        <Dialog open={false}></Dialog>
-      )
-    }
-    
-    const item = filteredProducts[addCartIndex].data()
-    return (
-      <Dialog open={popup == 'addToCart'} maxWidth='sm' fullWidth>
-        <Box sx={{ backgroundColor: 'white', p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center',}}>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 4 }}>{item.item_name}</Typography>
-          <Box sx={{ height: 128, width: '100%', backgroundColor: 'gray.200', mb: 4 }}></Box>
-          <Box sx={{ width: 300, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-            <Slider min={1} max={item.quantity} step={1} value={addCartQuantity} onChange={(e : any) => setAddCartQuantity(e.target.value)}/>
-            <TextField disabled variant='outlined' size='small' value={addCartQuantity} sx={{width: 60}}></TextField>
-          </Box>
-        </Box>
-        <DialogActions sx = {{ justifyContent: 'space-between' }}>
-          <Button onClick={() => {setPopup(null); setAddCartQuantity(-1)}}>Close</Button>
-          <Button onClick={() => handleAddToCartPress(addCartIndex, addCartQuantity)}>Add to Cart</Button>
-        </DialogActions>
-      </Dialog>
-    )
-  }
 
   const drawerContent = (
     <Box role="presentation" sx={{ width: 250, padding: 2 }}>
       <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>
         Categories
       </Typography>
-      <List>
-        {filterOptions.map((option) => (
-          <ListItem key={option} disablePadding>
-            <Checkbox />
-            <ListItemText primary={option} />
-          </ListItem>
-        ))}
-      </List>
       <List sx={{ mt: 1 }}>
         {shopTypeButtons.map((button) => (
           <ListItem key={button.label} disablePadding>
@@ -278,43 +184,10 @@ const Home: React.FC = () => {
               <MenuIcon />
             </IconButton>
             <Typography variant="h6" sx={{ fontWeight: 'bold', mr: 2 }}>
-              Muhammadiyah Minimart
+              Muhammadiyah Minimart Admin Console
             </Typography>
-            <TextField
-              value={searchBar}
-              onChange={e => setSearchBar(e.target.value)}
-              variant="outlined"
-              placeholder="Search for products"
-              size="small"
-              sx={{
-                backgroundColor: 'white',
-                borderRadius: 1,
-                flex: 1,
-              }}
-            />
-            <IconButton color="inherit">
-              <Search />
-            </IconButton>
-            <IconButton color='inherit' onClick={handleCartPress}>
-              <ShoppingCart/>
-            </IconButton>
           </Box>
-
-          {/* Right Section */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Button
-              variant="contained"
-              sx={{
-                backgroundColor: 'white',
-                color: 'green',
-                fontWeight: 'bold',
-                '&:hover': { backgroundColor: 'lightgray' }
-              }}
-              onClick={() => router.push("/login")}
-            >
-              Login
-            </Button>
-          </Box>
+          
         </Box>
       </Box>
 
@@ -323,67 +196,48 @@ const Home: React.FC = () => {
         {/* Product Catalog */}
         <Box sx={{ flexGrow: 1, p: 6 }}>
           <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 4 }}>
-            Product Catalog
+            {pageView}
           </Typography>
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' },
-              gap: 6,
-            }}
-          >
-            {filteredProducts
-              .map((x, index) => (
-                <Box
-                  key={index}
-                  sx={{
-                    backgroundColor: 'white',
-                    p: 4,
-                    borderRadius: 2,
-                    boxShadow: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Box sx={{ height: 128, width: '100%', backgroundColor: 'gray.200', mb: 4 }}></Box>
-                  <Typography variant="body1" sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                    {x.data()["item_name"]}
-                  </Typography>
-                  <Typography variant='body2' sx = {{textAlign: 'center'}}>
-                    Quantity Available: {x.data()["quantity"]}
-                  </Typography>
-                  <Typography variant='body2' sx = {{textAlign: 'center'}}>
-                    Cost : ${x.data()["cost"]}
-                  </Typography>
-                  {
-                    x.data()["quantity"] != 0
-                    ? (
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        sx={{ mt: 2, width: '100%' }}
-                        startIcon={<ShoppingCart />}
-                        // onClick={() => handleAddToCartPress(index)}
-                        onClick={() => { setAddCartIndex(index); setAddCartQuantity(1); setPopup("addToCart") }}
-                      >
-                        Add to Cart
-                      </Button>
-                    )
-                    : (
-                      <Button
-                        variant="contained"
-                        color='error'
-                        sx={{ mt: 2, width: '100%' }}
-                        onClick={() => handleRequestRestock(index)}
-                      >
-                        Request for restock
-                      </Button>
-                    )
-                  }
-                </Box>
-              ))}
-          </Box>
+          
+          {
+            pageView == "Account Management" &&
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell align='center'>User Email Address</TableCell>
+                  <TableCell align='center'>Voucher Amount</TableCell>
+                  <TableCell align='center'>Transaction History</TableCell>
+                  <TableCell align='center'></TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {
+                  allUserData.map((item, index) => (
+                    <TableRow key={index}>
+                      <TableCell align='center'>{item.data().user_email}</TableCell>
+                      <TableCell align='center'>{item.data().voucher_amount}</TableCell>
+                      <TableCell align='center'>
+                        <List>
+                          {
+                            item.data().transaction_history.map((entry : any, id : number) => (
+                              <ListItem key={id} sx={{ justifyContent: 'center' }}>
+                                <Typography variant='body2'>{entry.quantity} {entry.item_name} was purchased on {entry.purchase_date.toDate().toLocaleString()}</Typography>
+                              </ListItem>
+                            ))
+                          }
+                        </List>
+                      </TableCell>
+                      <TableCell align='center'>
+                        <Button>Suspend User</Button>
+                        <Button>Reset Password</Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                }
+              </TableBody>
+            </Table>
+          }
+          
         </Box>
       </Box>
 
@@ -397,10 +251,7 @@ const Home: React.FC = () => {
         <Alert severity={messageType == "success" ? 'success' : "error"} onClose={() => {setAlert(false); setMsg('')}}>{msg}</Alert>
       </Dialog>
 
-      {/* Add To Cart Dialog */}
-      {
-        addToCartDialogContent()
-      }
+ 
 
 
       {/* Cart Dialog */}
@@ -418,30 +269,16 @@ const Home: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                  {
-                    cart.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{item.item_name}</TableCell>
-                        <TableCell>{item.quantity}</TableCell>
-                        <TableCell>{item.cost}</TableCell>
-                        <TableCell>
-                          <Button onClick={() => { const newCart = [...cart]; newCart.splice(index, 1); setCart(newCart) }}>
-                            <Cancel color='error'/>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  }
+                  
                 </TableBody>
             </Table>
           </TableContainer>
         </DialogContent>
         <Typography variant='body2' sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-          Total cost: ${cart.reduce((x, y) => x + y.cost * y.quantity, 0).toFixed(2)}
+          Total cost:
         </Typography>
         <DialogActions sx = {{ justifyContent: 'space-between' }}>
           <Button onClick={() => setPopup(null)}>Close</Button>
-          <Button onClick={handleCheckOutPress}>Checkout</Button>
         </DialogActions>
       </Dialog>
 
