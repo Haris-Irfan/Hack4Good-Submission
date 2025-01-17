@@ -1,47 +1,57 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Button, TextField, Drawer, Checkbox, ListItem, List, ListItemText,
-  IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TableContainer, Table,
-  TableHead, TableRow, TableCell, TableBody, Paper, Alert, Slider } from "@mui/material";
-import { Cancel, Search, ShoppingCart } from "@mui/icons-material";
+import { Box, Typography, Button, TextField, Drawer,ListItem, List,
+  IconButton, Dialog, DialogTitle, DialogActions, Table,
+  TableHead, TableRow, TableCell, TableBody, Alert,
+  Slider,
+  DialogContent,
+  TableContainer,
+  Paper,} from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { getAllInventoryData, auth, createRequestData, createTransactionData, updateInventoryData, getUserData } from '@/firebaseConfig';
+import { changeCostOfInventoryItem, createInventoryData, createUserData, createUserDataViaAdmin, getAllInventoryData, getAllUserData, getUserData, updateInventoryData } from '@/firebaseConfig';
 import { useRouter } from 'next/navigation';
-import { QueryDocumentSnapshot, DocumentData, Timestamp } from 'firebase/firestore';
-import { set } from 'date-fns';
-import { createNewUser, reenableUser, suspendUser, updateUserPassword } from '@/firebaseAdmin';
+import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
+import { createNewUser, reenableUser, suspendUser, updateUserPassword } from '@/firebaseAdminApiCalls';
 
 const Home: React.FC = () => {
 
-  interface cartItem {
-    item_name : string,
-    quantity : number,
-    cost: number
-  }
-
   const [popup, setPopup] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [searchBar, setSearchBar] = useState<string>('')
 
   const [messageType, setMessageType] = useState<string>('') //success or error
   const [msg, setMsg] = useState<string>('')
   const [alert, setAlert] = useState<boolean>(false)
 
-  const [cart, setCart] = useState<cartItem[]>([])
   const [products, setProducts] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
-  const [filteredProducts, setFilteredProducts] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
-  const [addCartIndex, setAddCartIndex] = useState<number>(-1)
-  const [addCartQuantity, setAddCartQuantity] = useState<number>(1)
-
-  const [userData, setUserData] = useState<DocumentData>()
+  const [targetProduct, setTargetProduct] = useState<string>('')
+  const [adjustProductQuantity, setAdjustProductQuantity] = useState<number>(1)
+  const [adjustPrice, setAdjustPrice] = useState<number>(1)
+  const [itemName, setItemName] = useState<string>('')
   const [userList, setUserList] = useState<DocumentData>()
 
-  const [newUserEmail, setNewUserEmail] = useState("");
-  const [newUserPassword, setNewUserPassword] = useState("");
+  const [pageView, setPageView] = useState<string>("Account Management")
 
+  const [allUserData, setAllUserData] = useState<DocumentData[]>([])
+  const [targetUserEmail, setTargetUserEmail] = useState<string>('')
+  const [password, setPassword] = useState<string>('')
 
   const router = useRouter()
+
+  useEffect(() => {
+    const getAllUserAccounts = async () => {
+      try {
+        const data = await getAllUserData()
+        if (data) {
+          setAllUserData(data)
+        }
+      } catch (error) {
+        console.error(error)
+      }
+    }
+    getAllUserAccounts()
+    
+  }, [])
 
   useEffect(() => {
     const getProducts = async () => {
@@ -49,7 +59,6 @@ const Home: React.FC = () => {
         const data = await getAllInventoryData()
         if (data) {
           setProducts(data)
-          setFilteredProducts(data)
         }
       } catch (error) {
         console.error(error)
@@ -58,30 +67,6 @@ const Home: React.FC = () => {
     getProducts()
   }, [])
 
-  useEffect(() => {
-    if (auth.currentUser) {
-      const retrieveUserData = async () => {
-        try {
-          const data = await getUserData()
-          if (data) {
-            setUserData(data)
-          }
-        } catch (error) {
-          console.error(error)
-        }
-      }
-      retrieveUserData()
-    }
-  }, [])
-
-  useEffect(() => {
-    if (searchBar == '') {
-      setFilteredProducts(products)
-    } else {
-      const data = products.filter(x => x.data()["item_name"].toLowerCase().includes(searchBar.toLowerCase()))
-      setFilteredProducts(data)
-    }
-  }, [searchBar])
 
   const toggleDrawer = (open: boolean) => {
     return (event: React.MouseEvent | React.KeyboardEvent) => {
@@ -92,100 +77,158 @@ const Home: React.FC = () => {
     };
   };
   
-  const filterOptions = [
-    "Apparel",
-    "Bags & Shoes",
-    "Snacks",
-    "Miscellaneous",
-  ];
-
-  const handleDrawerVoucherPress = () => {
-    if (!auth.currentUser) {
+  const handleSuspendUser = async (index : number) => {
+    const user_email = allUserData[index].data().user_email
+    try {
+      await suspendUser(user_email)
+      setMessageType('success')
+      setMsg("Successfully suspended user")
+      setAlert(true)
+    } catch (error) {
       setMessageType('error')
-      setMsg("Access Denied. Please login first.")
+      setMsg("Failed to suspend user" + error)
       setAlert(true)
-    } else {
-      setPopup("vouchers")
     }
   }
 
-  const handleCartPress = () => {
-    if (cart.length == 0) {
+  const handleReenableUser = async (index : number) => {
+    const user_email = allUserData[index].data().user_email
+    try {
+      await reenableUser(user_email)
+      setMessageType('success')
+      setMsg("Successfully re-enabled user")
       setAlert(true)
-      setMessageType("error")
-      setMsg("No items in cart yet!")
-    } else {
-      setPopup("cart")
+    } catch (error) {
+      setMessageType('error')
+      setMsg("Failed to re-enable user" + error)
+      setAlert(true)
     }
   }
 
-  const handleAddToCartPress = (index : number, quantity : number) => {
-    const cart_item = cart.find(x => x.item_name == filteredProducts[index].data()["item_name"])
-    if (cart_item) {
-      if (cart_item.quantity + quantity < filteredProducts[index].data()["quantity"]) {
-        cart_item.quantity += quantity
-        setAlert(true)
-        setMessageType("success")
-        setMsg("Successfully added to cart!")
-        setPopup(null)
-        setAddCartQuantity(1)
-        setAddCartIndex(-1)
-      } else {
-        setAlert(true)
-        setMessageType("error")
-        setMsg("Exceeds inventory quantity!")
+  const handleResetPassword = async () => {
+    try {
+      await updateUserPassword(targetUserEmail, password)
+      setMessageType('success')
+      setMsg("Successfully updated user password")
+      setAlert(true)
+      setPopup(null)
+      setTargetUserEmail('')
+      setPassword('')
+    } catch (error) {
+      setMessageType('error')
+      setMsg("Failed to update user password" + error)
+      setAlert(true)
+    }
+  }
+
+  const handleAdjustInventory = async (type : number) => {
+    // type argument should be either 0 or 1. 0 represents subtract (purchase), 1 represents add (restock)
+    if (type == 0) {
+      const prod = products.find(x => x.data().item_name == targetProduct)
+      if (prod) {
+        if (prod.data().quantity < adjustProductQuantity) {
+          setMessageType('error')
+          setMsg("Invalid removal! Quantity to remove is greater than existing quantity")
+          setAlert(true)
+        } else {
+          try {
+            await updateInventoryData(targetProduct, adjustProductQuantity, 0)
+            const data = await getAllInventoryData()
+            if (data) {
+              setProducts(data)
+            }
+            setMessageType('success')
+            setMsg("Successfully updated item quantity")
+            setAlert(true)
+            setPopup(null)
+            setTargetProduct('')
+            setAdjustProductQuantity(1)
+          } catch (error) {
+            setMessageType('error')
+            setMsg("Failed to update item quantity" + error)
+            setAlert(true)
+          }
+        }
       }
     } else {
-      if (filteredProducts[index].data()["quantity"] > 0) {
-        cart.push({
-          item_name : filteredProducts[index].data()["item_name"],
-          quantity: quantity,
-          cost : filteredProducts[index].data()["cost"]
-        })
-        setPopup(null)
-        setAddCartQuantity(1)
-        setAddCartIndex(-1)
+      try {
+        await updateInventoryData(targetProduct, adjustProductQuantity, 1)
+        const data = await getAllInventoryData()
+        if (data) {
+          setProducts(data)
+        }
+        setMessageType('success')
+        setMsg("Successfully updated item quantity")
         setAlert(true)
-        setMessageType("success")
-        setMsg("Successfully added to cart!")
+        setPopup(null)
+        setTargetProduct('')
+        setAdjustProductQuantity(1)
+      } catch (error) {
+        setMessageType('error')
+        setMsg("Failed to update item quantity" + error)
+        setAlert(true)
       }
     }
   }
 
-  const handleRequestRestock = async (index : number) => {
-    const item_name = filteredProducts[index].data()["item_name"]
+  const handleUpdatePrice = async () => {
     try {
-      await createRequestData(item_name)
+      await changeCostOfInventoryItem(targetProduct, adjustPrice)
+      const data = await getAllInventoryData()
+      if (data) {
+        setProducts(data)
+      }
+      setMessageType('success')
+      setMsg("Successfully updated item price")
       setAlert(true)
-      setMessageType("success")
-      setMsg("Successfully created a restock request!")
+      setPopup(null)
+      setTargetProduct('')
+      setAdjustPrice(1)
     } catch (error) {
+      setMessageType('error')
+      setMsg("Failed to update item price" + error)
       setAlert(true)
-      setMessageType("error")
-      setMsg(String(error))
     }
   }
 
-  const handleCheckOutPress = async () => {
-    const checkout_cart : any[] = cart.map(x => {
-      const new_item : any = {...x}
-      delete new_item.cost
-      return new_item
-    })
-    
+  const handleAddNewItem = async () => {
     try {
-      await createTransactionData(checkout_cart, Timestamp.now())
-      cart.forEach(async x => {
-        await updateInventoryData(x.item_name, x.quantity, 0)
-      })
+      await createInventoryData(itemName, adjustProductQuantity, adjustPrice)
+      const data = await getAllInventoryData()
+      if (data) {
+        setProducts(data)
+      }
+      setMessageType('success')
+      setMsg("Successfully added new item to inventory")
       setAlert(true)
-      setMessageType("success")
-      setMsg("Successfully made purchase!")
-      setCart([])
+      setPopup(null)
+      setAdjustProductQuantity(1)
+      setAdjustPrice(1)
     } catch (error) {
+      setMessageType('error')
+      setMsg("Failed to add new item to inventory" + error)
       setAlert(true)
-      setMessageType("error")
-      setMsg(String(error))
+    }
+  }
+
+  const handleAddNewUser = async () => {
+    try {
+      await createNewUser(itemName, password)
+      await createUserDataViaAdmin(itemName, 0.00, [])
+      const data = await getAllUserData()
+      if (data) {
+        setAllUserData(data)
+      }
+      setMessageType('success')
+      setMsg("Successfully added new user")
+      setAlert(true)
+      setPopup(null)
+      setItemName('')
+      setPassword('')
+    } catch (error) {
+      setMessageType('error')
+      setMsg("Failed to add new user" + error)
+      setAlert(true)
     }
   }
 
@@ -202,55 +245,20 @@ const Home: React.FC = () => {
   }
 
   const shopTypeButtons = [
-    { label: "About Us", action: () => console.log("About Us clicked") },
-    { label: "Vouchers", action: handleDrawerVoucherPress },
-    { label: "Transaction History", action: () => console.log() },
+    { label: "Account Management", action: () => setPageView("Account Management") },
+    { label: "Product Requests Management", action: () => console.log("Sign Out clicked") },
+    { label: "Product Requests Summary", action: () => console.log("Sign Out clicked") },
+    { label: "Inventory Management", action: () => setPageView("Inventory Management") },
+    { label: "Inventory Summary", action: () => setPageView("Inventory Summary") },
     { label: "Sign Out", action: () => console.log("Sign Out clicked") },
-    { label: "Account Management", action: handleUserAccountManagement },
-    { label: "Inventory Requests", action: () => console.log("Sign Out clicked") },
-    { label: "Inventory Management", action: () => console.log("Sign Out clicked") },
-    { label: "Inventory Summary", action: () => console.log("Sign Out clicked") },
   ];
 
-  const addToCartDialogContent = () => {
-    if (addCartIndex == -1) {
-      return (
-        <Dialog open={false}></Dialog>
-      )
-    }
-    
-    const item = filteredProducts[addCartIndex].data()
-    return (
-      <Dialog open={popup == 'addToCart'} maxWidth='sm' fullWidth>
-        <Box sx={{ backgroundColor: 'white', p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center',}}>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 4 }}>{item.item_name}</Typography>
-          <Box sx={{ height: 128, width: '100%', backgroundColor: 'gray.200', mb: 4 }}></Box>
-          <Box sx={{ width: 300, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-            <Slider min={1} max={item.quantity} step={1} value={addCartQuantity} onChange={(e : any) => setAddCartQuantity(e.target.value)}/>
-            <TextField disabled variant='outlined' size='small' value={addCartQuantity} sx={{width: 60}}></TextField>
-          </Box>
-        </Box>
-        <DialogActions sx = {{ justifyContent: 'space-between' }}>
-          <Button onClick={() => {setPopup(null); setAddCartQuantity(-1)}}>Close</Button>
-          <Button onClick={() => handleAddToCartPress(addCartIndex, addCartQuantity)}>Add to Cart</Button>
-        </DialogActions>
-      </Dialog>
-    )
-  }
 
   const drawerContent = (
     <Box role="presentation" sx={{ width: 250, padding: 2 }}>
       <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>
         Categories
       </Typography>
-      <List>
-        {filterOptions.map((option) => (
-          <ListItem key={option} disablePadding>
-            <Checkbox />
-            <ListItemText primary={option} />
-          </ListItem>
-        ))}
-      </List>
       <List sx={{ mt: 1 }}>
         {shopTypeButtons.map((button) => (
           <ListItem key={button.label} disablePadding>
@@ -297,43 +305,10 @@ const Home: React.FC = () => {
               <MenuIcon />
             </IconButton>
             <Typography variant="h6" sx={{ fontWeight: 'bold', mr: 2 }}>
-              Muhammadiyah Minimart
+              Muhammadiyah Minimart Admin Console
             </Typography>
-            <TextField
-              value={searchBar}
-              onChange={e => setSearchBar(e.target.value)}
-              variant="outlined"
-              placeholder="Search for products"
-              size="small"
-              sx={{
-                backgroundColor: 'white',
-                borderRadius: 1,
-                flex: 1,
-              }}
-            />
-            <IconButton color="inherit">
-              <Search />
-            </IconButton>
-            <IconButton color='inherit' onClick={handleCartPress}>
-              <ShoppingCart/>
-            </IconButton>
           </Box>
-
-          {/* Right Section */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Button
-              variant="contained"
-              sx={{
-                backgroundColor: 'white',
-                color: 'green',
-                fontWeight: 'bold',
-                '&:hover': { backgroundColor: 'lightgray' }
-              }}
-              onClick={() => router.push("/login")}
-            >
-              Login
-            </Button>
-          </Box>
+          
         </Box>
       </Box>
 
@@ -342,67 +317,126 @@ const Home: React.FC = () => {
         {/* Product Catalog */}
         <Box sx={{ flexGrow: 1, p: 6 }}>
           <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 4 }}>
-            Product Catalog
+            {pageView}
           </Typography>
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' },
-              gap: 6,
-            }}
-          >
-            {filteredProducts
-              .map((x, index) => (
-                <Box
-                  key={index}
-                  sx={{
-                    backgroundColor: 'white',
-                    p: 4,
-                    borderRadius: 2,
-                    boxShadow: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Box sx={{ height: 128, width: '100%', backgroundColor: 'gray.200', mb: 4 }}></Box>
-                  <Typography variant="body1" sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                    {x.data()["item_name"]}
-                  </Typography>
-                  <Typography variant='body2' sx = {{textAlign: 'center'}}>
-                    Quantity Available: {x.data()["quantity"]}
-                  </Typography>
-                  <Typography variant='body2' sx = {{textAlign: 'center'}}>
-                    Cost : ${x.data()["cost"]}
-                  </Typography>
+          
+          {/* Account Management Tab */}
+          {
+            pageView == "Account Management" &&
+            <Box>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell align='center'>User Email Address</TableCell>
+                    <TableCell align='center'>Voucher Amount</TableCell>
+                    <TableCell align='center'>Transaction History</TableCell>
+                    <TableCell align='center'></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
                   {
-                    x.data()["quantity"] != 0
-                    ? (
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        sx={{ mt: 2, width: '100%' }}
-                        startIcon={<ShoppingCart />}
-                        // onClick={() => handleAddToCartPress(index)}
-                        onClick={() => { setAddCartIndex(index); setAddCartQuantity(1); setPopup("addToCart") }}
-                      >
-                        Add to Cart
-                      </Button>
-                    )
-                    : (
-                      <Button
-                        variant="contained"
-                        color='error'
-                        sx={{ mt: 2, width: '100%' }}
-                        onClick={() => handleRequestRestock(index)}
-                      >
-                        Request for restock
-                      </Button>
-                    )
+                    allUserData.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell align='center'>{item.data().user_email}</TableCell>
+                        <TableCell align='center'>{item.data().voucher_amount}</TableCell>
+                        <TableCell align='center'>
+                          <List>
+                            {
+                              item.data().transaction_history.map((entry : any, id : number) => (
+                                <ListItem key={id} sx={{ justifyContent: 'center' }}>
+                                  <Typography variant='body2'>{entry.quantity} {entry.item_name} was purchased on {entry.purchase_date.toDate().toLocaleString()}</Typography>
+                                </ListItem>
+                              ))
+                            }
+                          </List>
+                        </TableCell>
+                        <TableCell align='center'>
+                          <Button onClick={e => {e.preventDefault(); handleSuspendUser(index)}}>Suspend User</Button>
+                          <Button onClick={e => {e.preventDefault(); handleReenableUser(index)}}>Re-enable User</Button>
+                          <Button onClick={() => {setPopup("resetPW"); setTargetUserEmail(item.data().user_email)}}>Reset Password</Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
                   }
-                </Box>
-              ))}
-          </Box>
+                </TableBody>
+              </Table>
+              <Button sx={{margin:2}} onClick={() => setPopup('newUser')}>New User</Button>
+            </Box>
+          }
+
+          {/* Inventory Management Tab */}
+          {
+            pageView == "Inventory Management" &&
+            <Box>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell align='center'>Item</TableCell>
+                    <TableCell align='center'>Quantity</TableCell>
+                    <TableCell align='center'>Current Price</TableCell>
+                    <TableCell align='center'>Logs</TableCell>
+                    <TableCell align='center'></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {
+                    products.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell align='center'>{item.data().item_name}</TableCell>
+                        <TableCell align='center'>{item.data().quantity}</TableCell>
+                        <TableCell align='center'>${item.data().cost}</TableCell>
+                        <TableCell align='center'>
+                          <List>
+                            {
+                              item.data()["log"].map((entry : string, id : number) => (
+                                <ListItem key={id} sx={{ justifyContent: 'center' }}>
+                                  <Typography variant='body2'>{id + 1}. {entry}</Typography>
+                                </ListItem>
+                              ))
+                            }
+                          </List>
+                        </TableCell>
+                        
+                        <TableCell align='center'>
+                          <Button onClick={ () => {setPopup("adjustQuantity"); setTargetProduct(item.data().item_name) }}>Adjust Quantity</Button>
+                          <Button onClick={ () => {setPopup("changePrice") ; setTargetProduct(item.data().item_name)} }>Change Price</Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  }
+                </TableBody>
+              </Table>
+              <Button sx={{margin:2}} onClick={() => setPopup('newItem')}>New Item</Button>
+            </Box>
+          }
+          
+          {/* Inventory Summary Tab */}
+          {
+            pageView == "Inventory Summary" &&
+            <Box>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell align='center'>Item</TableCell>
+                    <TableCell align='center'>Quantity</TableCell>
+                    <TableCell align='center'>Current Price</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {
+                    products.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell align='center'>{item.data().item_name}</TableCell>
+                        <TableCell align='center'>{item.data().quantity}</TableCell>
+                        <TableCell align='center'>${item.data().cost}</TableCell>
+                      </TableRow>
+                    ))
+                  }
+                </TableBody>
+              </Table>
+            </Box>
+          }
+          
         </Box>
       </Box>
 
@@ -416,61 +450,88 @@ const Home: React.FC = () => {
         <Alert severity={messageType == "success" ? 'success' : "error"} onClose={() => {setAlert(false); setMsg('')}}>{msg}</Alert>
       </Dialog>
 
-      {/* Add To Cart Dialog */}
-      {
-        addToCartDialogContent()
-      }
-
-
-      {/* Cart Dialog */}
-      <Dialog open={popup == "cart"} maxWidth='sm' fullWidth>
-        <DialogTitle>Shopping Cart</DialogTitle>
-        <DialogContent>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Item</TableCell>
-                  <TableCell>Quantity</TableCell>
-                  <TableCell>Cost of 1 item</TableCell>
-                  <TableCell/>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                  {
-                    cart.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{item.item_name}</TableCell>
-                        <TableCell>{item.quantity}</TableCell>
-                        <TableCell>{item.cost}</TableCell>
-                        <TableCell>
-                          <Button onClick={() => { const newCart = [...cart]; newCart.splice(index, 1); setCart(newCart) }}>
-                            <Cancel color='error'/>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  }
-                </TableBody>
-            </Table>
-          </TableContainer>
-        </DialogContent>
-        <Typography variant='body2' sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-          Total cost: ${cart.reduce((x, y) => x + y.cost * y.quantity, 0).toFixed(2)}
-        </Typography>
+ 
+      {/* Reset Password Dialog */}
+      <Dialog open={popup =='resetPW'} maxWidth='md' fullWidth>
+        <DialogTitle sx={{textAlign:'center'}}>Reset Password for {targetUserEmail}</DialogTitle>
+        <TextField placeholder='Enter new password' value={password} onChange={e => setPassword(e.target.value)} sx={{margin:2}}/>
         <DialogActions sx = {{ justifyContent: 'space-between' }}>
           <Button onClick={() => setPopup(null)}>Close</Button>
-          <Button onClick={handleCheckOutPress}>Checkout</Button>
+          <Button onClick={handleResetPassword}>Update Password</Button>
         </DialogActions>
       </Dialog>
 
-      {/* Voucher Dialog */}
-      <Dialog open={popup == "vouchers"}>
-          <DialogTitle>Vouchers</DialogTitle>
-          <DialogContent>Voucher Amount: {userData ? userData["voucher_amount"] : ""}</DialogContent>
-          <DialogActions>
-            <Button onClick={() => setPopup(null)}>Close</Button>
-          </DialogActions>
+      {/* Adjust Quantity Dialog */}
+      <Dialog open={popup == 'adjustQuantity'} maxWidth='md' fullWidth>
+        <DialogTitle sx={{textAlign:'center'}}>Adjust Quantity for {targetProduct}</DialogTitle>
+          <Box sx={{ width: 300, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf:'center' }}>
+            <Slider min={1} max={200} step={1} value={adjustProductQuantity} onChange={(e : any) => setAdjustProductQuantity(e.target.value)}/>
+            <TextField disabled variant='outlined' size='small' value={adjustProductQuantity} sx={{width: 75}}></TextField>
+          </Box>
+        <DialogActions sx = {{ justifyContent: 'space-between' }}>
+          <Button onClick={() => setPopup(null)}>Close</Button>
+          <Box>
+            <Button onClick={() => handleAdjustInventory(1)}>Add</Button>
+            <Button onClick={() => handleAdjustInventory(0)}>Remove</Button>
+          </Box>
+        </DialogActions>
+      </Dialog>
+
+      {/* Change Price Dialog */}
+      <Dialog open={popup == 'changePrice'} maxWidth='md' fullWidth>
+        <DialogTitle sx={{textAlign:'center'}}>Adjust Price for {targetProduct}</DialogTitle>
+          <Box sx={{ width: 300, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf:'center' }}>
+            <Slider min={0.01} max={300} step={0.01} value={adjustPrice} onChange={(e : any) => setAdjustPrice(e.target.value)}/>
+            <TextField disabled variant='outlined' size='small' value={adjustPrice} sx={{width: 120}}></TextField>
+          </Box>
+        <DialogActions sx = {{ justifyContent: 'space-between' }}>
+          <Button onClick={() => setPopup(null)}>Close</Button>
+          <Button onClick={handleUpdatePrice}>Update</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* New Item Dialog */}
+      <Dialog open={popup == 'newItem'} maxWidth='md' fullWidth>
+        <DialogTitle sx={{textAlign:'center'}}>Adjust New Item to Inventory</DialogTitle>
+          <Box sx={{ display:'flex', flexDirection:'row', gap: 2, alignSelf:'center', margin:1}}>
+            <Typography sx={{marginTop:1}}>Item Name:</Typography>
+            <TextField placeholder='Enter Item Name' value={itemName} onChange={e => setItemName(e.target.value)} size='small'/>
+          </Box>
+
+          <Box sx={{ width: 300, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf:'center', margin:1 }}>
+            <Typography>Quantity:</Typography>
+            <Slider min={1} max={200} step={1} value={adjustProductQuantity} onChange={(e : any) => setAdjustProductQuantity(e.target.value)}/>
+            <TextField disabled variant='outlined' size='small' value={adjustProductQuantity} sx={{width: 120}}></TextField>
+          </Box>
+          
+          <Box sx={{ width: 300, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf:'center', margin: 1 }}>
+            <Typography>Price:</Typography>
+            <Slider min={0.01} max={300} step={0.01} value={adjustPrice} onChange={(e : any) => setAdjustPrice(e.target.value)}/>
+            <TextField disabled variant='outlined' size='small' value={adjustPrice} sx={{width: 160}}></TextField>
+          </Box>
+        <DialogActions sx = {{ justifyContent: 'space-between' }}>
+          <Button onClick={() => setPopup(null)}>Close</Button>
+          <Button onClick={handleAddNewItem}>Add Item</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* New User Dialog */}
+      <Dialog open={popup == 'newUser'} maxWidth='md' fullWidth>
+        <DialogTitle sx={{textAlign:'center'}}>Adjust New User</DialogTitle>
+          <Box sx={{ display:'flex', flexDirection:'row', gap: 2, alignSelf:'center', margin:1,}}>
+            <Typography sx={{marginTop:1}}>Email:</Typography>
+            <TextField placeholder='Enter User Email' value={itemName} onChange={e => setItemName(e.target.value)} size='small'/>
+          </Box>
+
+          <Box sx={{ display:'flex', flexDirection:'row', gap: 2, alignSelf:'center', margin:1}}>
+            <Typography sx={{marginTop:1}}>Password:</Typography>
+            <TextField placeholder='Enter Password' value={password} onChange={e => setPassword(e.target.value)} size='small'/>
+          </Box>
+
+        <DialogActions sx = {{ justifyContent: 'space-between' }}>
+          <Button onClick={() => setPopup(null)}>Close</Button>
+          <Button onClick={handleAddNewUser}>Add User</Button>
+        </DialogActions>
       </Dialog>
                 
       {/* Account Management Dialog */}
@@ -507,5 +568,3 @@ const Home: React.FC = () => {
 };
 
 export default Home;
-
-

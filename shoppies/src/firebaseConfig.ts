@@ -70,6 +70,19 @@ export async function createUserData(voucher_amount : number, transaction_histor
     }
 }
 
+export async function createUserDataViaAdmin(user_email : string, voucher_amount : number, transaction_history : transactions[]) {
+    try {
+        await addDoc(collection(database, "userData"), {
+            "user_email" : user_email,
+            "voucher_amount" : voucher_amount,
+            "transaction_history" : transaction_history
+        }) 
+        console.log("Successfully created new user");
+    } catch (error) {
+        console.log("Error: ", error) 
+    }
+}
+
 export async function updateUserData(voucher_amount : number, transaction_history : transactions[]) {
     try {
         if (!currentUser) {
@@ -98,6 +111,15 @@ export async function getUserData() {
         }
         const response = await getDocs(query(collection(database, "userData"), where("user_email", "==", currentUser.email)))
         return response.docs[0].data()
+    } catch (error) {
+        console.log("Error: ", error)
+    }
+}
+
+export async function getAllUserData() {
+    try {
+        const response = await getDocs(query(collection(database, "userData")))
+        return response.docs
     } catch (error) {
         console.log("Error: ", error)
     }
@@ -151,7 +173,7 @@ export async function getTransactionData() {
 
 export async function createInventoryData(item_name : string, quantity : number, cost : number) {
     try {
-        const log_entry = String("Added " + quantity + " " + item_name)
+        const log_entry = String("Added " + quantity + " " + item_name + " on " + Timestamp.now().toDate().toLocaleString())
         await addDoc(collection(database, "inventory"), {
             "item_name" :  item_name,
             "quantity" : quantity,
@@ -173,9 +195,10 @@ export async function changeCostOfInventoryItem(item_name : string, cost : numbe
             const original_data = original_docs.docs[0].data()
             const original_data_ref = original_docs.docs[0].ref
 
-            const new_log_entry = "Price of " + item_name + " changed to " + cost + " on " + Timestamp.now().toString()
+            const new_log_entry = "Price of " + item_name + " changed to $" + cost + " on " + Timestamp.now().toDate().toLocaleString()
 
-            const new_log : string[] = original_data["log"].push(new_log_entry)
+            const new_log = original_data["log"]
+            new_log.push(new_log_entry)
 
             await updateDoc(original_data_ref, {
                 "cost" : cost,
@@ -202,14 +225,17 @@ export async function updateInventoryData(item_name : string, quantity : number,
 
             const new_item_quantity = type == 0 ? original_data["quantity"] - quantity : original_data["quantity"] + quantity
             const new_log_entry = type == 0
-                ? quantity + " " + item_name + " purchased on " + Timestamp.now().toString()
-                : quantity + " " + item_name + " restocked on " + Timestamp.now().toString()
+                ? quantity + " " + item_name + " removed on " + Timestamp.now().toDate().toLocaleString()
+                : quantity + " " + item_name + " stocked on " + Timestamp.now().toDate().toLocaleString()
 
-            const new_log : string[] = original_data["log"].push(new_log_entry)
+            
+            const new_log = original_data["log"]
+            new_log.push(new_log_entry)
+            // const new_log : string[] = original_data["log"].push(new_log_entry)
 
             await updateDoc(original_data_ref, {
                 "quantity": new_item_quantity,
-                "log" : new_log_entry
+                "log" : new_log
             })
             console.log("Successfully updated inventory item.")
         } else {
@@ -252,7 +278,7 @@ export async function createRequestData(item_name : string) {
     if (!auth.currentUser) {
         throw new Error("No User signed in")
     }
-    const log_entry = "Request created on " + Timestamp.now().toString()
+    const log_entry = "Request created on " + Timestamp.now().toDate().toLocaleString()
     await addDoc(collection(database, "requests"), {
         "user_email" : auth.currentUser.email,
         "item_name" : item_name,
@@ -267,7 +293,7 @@ export async function updateRequestData(docRef : DocumentReference, status : str
     try {
         updateDoc(docRef, {
             "status" : status,
-            "log" : log.push("Status updated to " + status + " on " + Timestamp.now().toString())
+            "log" : log.push("Status updated to " + status + " on " + Timestamp.now().toDate().toLocaleString())
         })
     } catch (error) {
         console.error(error)
