@@ -470,7 +470,7 @@ const Home: React.FC = () => {
             <Box>
 
               <Box sx={{margin:3}}>
-                <Typography variant='h6'>Summary of Requests Made in Last 7 Days</Typography>
+                <Typography variant='h6'>Summary of Requests Made in last 7 Days</Typography>
                 <Table>
                   <TableHead>
                     <TableRow>
@@ -490,7 +490,7 @@ const Home: React.FC = () => {
               </Box>
 
               <Box sx={{margin:3}}>
-                <Typography variant='h6'>Most Requested Items</Typography>
+                <Typography variant='h6'>Top 3 Most Requested Items in last 7 days</Typography>
                 <Table>
                   <TableHead>
                     <TableRow>
