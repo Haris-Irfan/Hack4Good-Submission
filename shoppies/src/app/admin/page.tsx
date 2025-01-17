@@ -230,10 +230,10 @@ const Home: React.FC = () => {
 
   const shopTypeButtons = [
     { label: "Account Management", action: () => setPageView("Account Management") },
-    { label: "Product Requests", action: () => console.log("Sign Out clicked") },
+    { label: "Product Requests Management", action: () => console.log("Sign Out clicked") },
     { label: "Product Requests Summary", action: () => console.log("Sign Out clicked") },
-    { label: "Inventory Management", action: () => {setPageView("Inventory Management"); console.log(products)} },
-    { label: "Inventory Summary", action: () => console.log("Sign Out clicked") },
+    { label: "Inventory Management", action: () => setPageView("Inventory Management") },
+    { label: "Inventory Summary", action: () => setPageView("Inventory Summary") },
     { label: "Sign Out", action: () => console.log("Sign Out clicked") },
   ];
 
@@ -394,6 +394,32 @@ const Home: React.FC = () => {
             </Box>
           }
           
+          {/* Inventory Summary Tab */}
+          {
+            pageView == "Inventory Summary" &&
+            <Box>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell align='center'>Item</TableCell>
+                    <TableCell align='center'>Quantity</TableCell>
+                    <TableCell align='center'>Current Price</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {
+                    products.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell align='center'>{item.data().item_name}</TableCell>
+                        <TableCell align='center'>{item.data().quantity}</TableCell>
+                        <TableCell align='center'>${item.data().cost}</TableCell>
+                      </TableRow>
+                    ))
+                  }
+                </TableBody>
+              </Table>
+            </Box>
+          }
           
         </Box>
       </Box>
@@ -497,4 +523,3 @@ const Home: React.FC = () => {
 };
 
 export default Home;
-
