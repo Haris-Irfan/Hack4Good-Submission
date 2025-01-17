@@ -276,17 +276,7 @@ const Home: React.FC = () => {
       console.log(freqArr.length)
       
       return freqArr.slice(0, 3)
-
-  const handleUserAccountManagement = async () => {
-    try {
-        const user = await getUserData()
-        setPopup("accountManagement")
-        setUserList(user)
-    } catch (error) {
-        setAlert(true)
-        setMessageType("error")
-        setMsg("Failed to retrieve user data")
-    }
+   }
   }
 
   const shopTypeButtons = [
@@ -660,5 +650,6 @@ const Home: React.FC = () => {
     </Box>
   );
 };
+
 
 export default Home;

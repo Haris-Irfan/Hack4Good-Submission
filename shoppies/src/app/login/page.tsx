@@ -8,6 +8,7 @@ import { browserLocalPersistence, onAuthStateChanged, setPersistence, signInWith
 import { Timestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Alert } from '@mui/material';
 
 interface Transaction {
   item_name: string;
@@ -73,6 +74,10 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className="page-container">
+      {
+        signUpSuccessAlert &&
+        <Alert severity='success'>Successfully signed up</Alert>
+      }
       <h1>Sign in for faster checkout</h1>
       <h2>Sign in to Muhammadiyah Minimart</h2>
 

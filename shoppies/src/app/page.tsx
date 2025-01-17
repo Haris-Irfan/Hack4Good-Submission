@@ -6,7 +6,7 @@ import { Box, Typography, Button, TextField, Drawer, Checkbox, ListItem, List, L
   TableHead, TableRow, TableCell, TableBody, Paper, Alert, Grid2, Slider, Input } from "@mui/material";
 import { Cancel, Search, ShoppingCart } from "@mui/icons-material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { getAllInventoryData, auth, createRequestData, createTransactionData, updateInventoryData, getUserData } from '@/firebaseConfig';
+import { getAllInventoryData, auth, createRequestData, createTransactionData, updateInventoryData, getUserData, SignOut } from '@/firebaseConfig';
 import { useRouter } from 'next/navigation';
 import { QueryDocumentSnapshot, DocumentData, Timestamp } from 'firebase/firestore';
 
@@ -179,6 +179,11 @@ const Home: React.FC = () => {
       cart.forEach(async x => {
         await updateInventoryData(x.item_name, x.quantity, 0)
       })
+      const data = await getAllInventoryData()
+      if (data) {
+        setProducts(data)
+        setFilteredProducts(data)
+      }
       setAlert(true)
       setMessageType("success")
       setMsg("Successfully made purchase!")
@@ -190,11 +195,16 @@ const Home: React.FC = () => {
     }
   }
 
+  const handle_sign_out = async () => {
+    await SignOut()
+    router.push('')
+  }
+
   const shopTypeButtons = [
     { label: "About Us", action: () => console.log("About Us clicked") },
     { label: "Vouchers", action: handleDrawerVoucherPress },
     { label: "Transaction History", action: () => console.log() },
-    { label: "Sign Out", action: () => console.log("Sign Out clicked") },
+    { label: "Sign Out", action: handle_sign_out },
   ];
 
   const addToCartDialogContent = () => {
@@ -305,20 +315,23 @@ const Home: React.FC = () => {
           </Box>
 
           {/* Right Section */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Button
-              variant="contained"
-              sx={{
-                backgroundColor: 'white',
-                color: 'green',
-                fontWeight: 'bold',
-                '&:hover': { backgroundColor: 'lightgray' }
-              }}
-              onClick={() => router.push("/login")}
-            >
-              Login
-            </Button>
-          </Box>
+          {
+            !auth.currentUser &&
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Button
+                variant="contained"
+                sx={{
+                  backgroundColor: 'white',
+                  color: 'green',
+                  fontWeight: 'bold',
+                  '&:hover': { backgroundColor: 'lightgray' }
+                }}
+                onClick={() => router.push("/login")}
+              >
+                Login
+              </Button>
+            </Box>
+          }
         </Box>
       </Box>
 
@@ -465,7 +478,7 @@ const Home: React.FC = () => {
       {/* Voucher Dialog */}
       <Dialog open={popup == "vouchers"}>
           <DialogTitle>Vouchers</DialogTitle>
-          <DialogContent>Voucher Amount: {userData ? userData["voucher_amount"] : ""}</DialogContent>
+          <DialogContent>Voucher Amount: ${userData ? userData["voucher_amount"] : ""}</DialogContent>
           <DialogActions>
             <Button onClick={() => setPopup(null)}>Close</Button>
           </DialogActions>
