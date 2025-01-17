@@ -178,6 +178,10 @@ const Home: React.FC = () => {
     const item_name = filteredProducts[index].data()["item_name"]
     try {
       await createRequestData(item_name)
+      const data = await getUserRequestData()
+      if (data) {
+        setUserReqHist(data)
+      }
       setAlert(true)
       setMessageType("success")
       setMsg("Successfully created a restock request!")
@@ -235,7 +239,7 @@ const Home: React.FC = () => {
 
   const handle_sign_out = async () => {
     await SignOut()
-    router.push('')
+    router.push('./login/')
   }
 
   const handleTransHistPress = () => {
@@ -510,7 +514,7 @@ const Home: React.FC = () => {
         <Box sx={{display:'flex', flexDirection:'row', gap:2, justifyContent:'center'}}>
           <Typography variant='body1' sx={{ fontWeight: 'bold', textAlign: 'center', marginTop:1 }}>Voucher amount to redeem: </Typography>
           <TextField disabled variant='outlined' size='small' value={useVoucher} sx={{width: 120}}></TextField>
-          <Slider min={0} max={userData ? userData.voucher_amount : 0} step={0.01}
+          <Slider min={0} max={userData ? userData.voucher_amount : 0} step={1}
             sx={{width:'0.5', marginTop:1}} size='small' disabled={!userData}
             value={useVoucher} onChange={(e : any)=> setUseVoucher(e.target.value)}/>
         </Box>
