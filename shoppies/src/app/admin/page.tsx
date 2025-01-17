@@ -6,7 +6,7 @@ import { Box, Typography, Button, TextField, Drawer,ListItem, List,
   TableHead, TableRow, TableCell, TableBody, Alert,
   Slider,} from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { getAllInventoryData, getAllUserData, updateInventoryData } from '@/firebaseConfig';
+import { changeCostOfInventoryItem, getAllInventoryData, getAllUserData, updateInventoryData } from '@/firebaseConfig';
 import { useRouter } from 'next/navigation';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { reenableUser, suspendUser, updateUserPassword } from '@/firebaseAdminApiCalls';
@@ -23,6 +23,7 @@ const Home: React.FC = () => {
   const [products, setProducts] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
   const [targetProduct, setTargetProduct] = useState<string>('')
   const [adjustProductQuantity, setAdjustProductQuantity] = useState<number>(1)
+  const [adjustPrice, setAdjustPrice] = useState<number>(1)
 
   const [pageView, setPageView] = useState<string>("Account Management")
 
@@ -162,6 +163,26 @@ const Home: React.FC = () => {
         setMsg("Failed to update item quantity" + error)
         setAlert(true)
       }
+    }
+  }
+
+  const handleUpdatePrice = async () => {
+    try {
+      await changeCostOfInventoryItem(targetProduct, adjustPrice)
+      const data = await getAllInventoryData()
+      if (data) {
+        setProducts(data)
+      }
+      setMessageType('success')
+      setMsg("Successfully updated item price")
+      setAlert(true)
+      setPopup(null)
+      setTargetProduct('')
+      setAdjustPrice(1)
+    } catch (error) {
+      setMessageType('error')
+      setMsg("Failed to update item price" + error)
+      setAlert(true)
     }
   }
 
@@ -320,7 +341,7 @@ const Home: React.FC = () => {
                         
                         <TableCell align='center'>
                           <Button onClick={ () => {setPopup("adjustQuantity"); setTargetProduct(item.data().item_name) }}>Adjust Quantity</Button>
-                          <Button>Change Price</Button>
+                          <Button onClick={ () => {setPopup("changePrice") ; setTargetProduct(item.data().item_name)} }>Change Price</Button>
                         </TableCell>
                       </TableRow>
                     ))
@@ -329,7 +350,6 @@ const Home: React.FC = () => {
               </Table>
               <Button sx={{margin:2}}>New Item</Button>
             </Box>
-            
           }
           
           
@@ -370,6 +390,19 @@ const Home: React.FC = () => {
             <Button onClick={() => handleAdjustInventory(1)}>Add</Button>
             <Button onClick={() => handleAdjustInventory(0)}>Remove</Button>
           </Box>
+        </DialogActions>
+      </Dialog>
+
+      {/* Change Price Dialog */}
+      <Dialog open={popup == 'changePrice'} maxWidth='md' fullWidth>
+        <DialogTitle sx={{textAlign:'center'}}>Adjust Price for {targetProduct}</DialogTitle>
+          <Box sx={{ width: 300, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf:'center' }}>
+            <Slider min={0.01} max={300} step={0.01} value={adjustPrice} onChange={(e : any) => setAdjustPrice(e.target.value)}/>
+            <TextField disabled variant='outlined' size='small' value={adjustPrice} sx={{width: 120}}></TextField>
+          </Box>
+        <DialogActions sx = {{ justifyContent: 'space-between' }}>
+          <Button onClick={() => setPopup(null)}>Close</Button>
+          <Button onClick={handleUpdatePrice}>Update</Button>
         </DialogActions>
       </Dialog>
 

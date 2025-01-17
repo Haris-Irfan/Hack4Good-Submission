@@ -182,9 +182,10 @@ export async function changeCostOfInventoryItem(item_name : string, cost : numbe
             const original_data = original_docs.docs[0].data()
             const original_data_ref = original_docs.docs[0].ref
 
-            const new_log_entry = "Price of " + item_name + " changed to " + cost + " on " + Timestamp.now().toDate().toLocaleString()
+            const new_log_entry = "Price of " + item_name + " changed to $" + cost + " on " + Timestamp.now().toDate().toLocaleString()
 
-            const new_log : string[] = original_data["log"].push(new_log_entry)
+            const new_log = original_data["log"]
+            new_log.push(new_log_entry)
 
             await updateDoc(original_data_ref, {
                 "cost" : cost,
