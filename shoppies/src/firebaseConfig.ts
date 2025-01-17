@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { collection, addDoc, getFirestore, getDocs, query, where, Timestamp, updateDoc, DocumentReference } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, getAuth, signOut, onAuthStateChanged, User, browserLocalPersistence, setPersistence } from 'firebase/auth';
+import { Pending } from "@mui/icons-material";
 
 const firebaseConfig = {
     apiKey: "AIzaSyAqVtdqwIYvlNdz4jIDDJ6IAIYZVpOTj_Y",
@@ -131,7 +132,7 @@ export async function createTransactionData(purchase : { item_name: string, quan
         throw new Error("No user signed in");
     }
     await addDoc(collection(database, "transactions"), {
-        "userEmail" : currentUser.email,
+        "user_email" : currentUser.email,
         "purchase" : purchase,
         "purchase_date" : purchase_date
     })
@@ -165,7 +166,7 @@ export async function getTransactionData() {
           throw new Error("No user signed in");
         }
         const response = await getDocs(query(collection(database, "transactions"), where("user_email", "==", currentUser.email)))
-        return response.docs[0].data()
+        return response.docs
     } catch (error) {
         console.log("Error: ", error)
     }
@@ -290,11 +291,36 @@ export async function createRequestData(item_name : string) {
 
 export async function updateRequestData(docRef : DocumentReference, status : string, log : string[]) {
     //status is a string of either of the following values: pending/approved/rejected. always initially "pending"
+    const additional_info = status == "pending"
+        ? ""
+        : status == "approved"
+        ? ". You have successfully indicated interest in item and it will be reserved for you once restocked"
+        : ". You have been unsuccessful in request for this item."
+
+    log.push("Status updated to " + status + " on " + Timestamp.now().toDate().toLocaleString() + additional_info)
+    
     try {
         updateDoc(docRef, {
             "status" : status,
-            "log" : log.push("Status updated to " + status + " on " + Timestamp.now().toDate().toLocaleString())
+            "log" : log
         })
+    } catch (error) {
+        console.error(error)
+    }
+}
+
+export async function getUserRequestData() {
+    // returns an array of all the request documents
+    if (!auth.currentUser) {
+        throw new Error("No User signed in")
+    }
+    try {
+        const docs = await getDocs(
+            query(collection(database, "requests"), where("user_email", "==", auth.currentUser.email))
+        )
+        if (!docs.empty) {
+            return docs.docs
+        }
     } catch (error) {
         console.error(error)
     }

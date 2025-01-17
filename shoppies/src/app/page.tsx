@@ -6,7 +6,7 @@ import { Box, Typography, Button, TextField, Drawer, Checkbox, ListItem, List, L
   TableHead, TableRow, TableCell, TableBody, Paper, Alert, Grid2, Slider, Input } from "@mui/material";
 import { Cancel, Search, ShoppingCart } from "@mui/icons-material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { getAllInventoryData, auth, createRequestData, createTransactionData, updateInventoryData, getUserData, updateUserData } from '@/firebaseConfig';
+import { getAllInventoryData, auth, createRequestData, createTransactionData, updateInventoryData, getUserData, SignOut, getTransactionData, getUserRequestData } from '@/firebaseConfig';
 import { useRouter } from 'next/navigation';
 import { QueryDocumentSnapshot, DocumentData, Timestamp } from 'firebase/firestore';
 
@@ -33,6 +33,8 @@ const Home: React.FC = () => {
   const [addCartQuantity, setAddCartQuantity] = useState<number>(1)
   const [useVoucher, setUseVoucher] = useState<number>(0)
 
+  const [userTransHist, setUserTransHist] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
+  const [userReqHist, setUserReqHist] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
   const [userData, setUserData] = useState<DocumentData>()
 
   const router = useRouter()
@@ -77,6 +79,38 @@ const Home: React.FC = () => {
     }
   }, [searchBar])
 
+  useEffect(() => {
+    if (auth.currentUser) {
+      const getTransHist = async () => {
+        try {
+          const data = await getTransactionData()
+          if (data) {
+            setUserTransHist(data)
+          }
+        } catch (error) {
+          console.error(error)
+        }
+      }
+      getTransHist()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (auth.currentUser) {
+      const getReqHist = async () => {
+        try {
+          const data = await getUserRequestData()
+          if (data) {
+            setUserReqHist(data)
+          }
+        } catch (error) {
+          console.error(error)
+        }
+      }
+      getReqHist()
+    }
+  }, [])
+
   const toggleDrawer = (open: boolean) => {
     return (event: React.MouseEvent | React.KeyboardEvent) => {
       if (event.type === "keydown" && (event as React.KeyboardEvent).key === "Tab" || (event as React.KeyboardEvent).key === "Shift") {
@@ -86,12 +120,6 @@ const Home: React.FC = () => {
     };
   };
   
-  const filterOptions = [
-    "Apparel",
-    "Bags & Shoes",
-    "Snacks",
-    "Miscellaneous",
-  ];
 
   const handleDrawerVoucherPress = () => {
     if (!auth.currentUser) {
@@ -174,34 +202,57 @@ const Home: React.FC = () => {
     });
   
     try {
-      const newVoucherAmount = Math.round((userData?.voucher_amount || 0) - useVoucher) * 100 / 100;
-      if (userData) {
-        await updateUserData(newVoucherAmount, userData.transaction_history || []);
+      await createTransactionData(checkout_cart, Timestamp.now())
+      cart.forEach(async x => {
+        await updateInventoryData(x.item_name, x.quantity, 0)
+      })
+      const data = await getAllInventoryData()
+      if (data) {
+        setProducts(data)
+        setFilteredProducts(data)
       }
-        await createTransactionData(checkout_cart, Timestamp.now());
-        for (const item of cart) {
-        await updateInventoryData(item.item_name, item.quantity, 0);
-      }
-      setAlert(true);
-      setMessageType("success");
-      setMsg("Successfully made purchase!");
-      setCart([]);
-      setUserData((prev) => ({
-        ...prev,
-        voucher_amount: newVoucherAmount,
-      }));
+      setAlert(true)
+      setMessageType("success")
+      setMsg("Successfully made purchase!")
+      setCart([])
     } catch (error) {
       setAlert(true);
       setMessageType("error");
       setMsg(`Error: ${(error as Error).message}`);
     }
-  };
-  
+  }
+
+  const handle_sign_out = async () => {
+    await SignOut()
+    router.push('')
+  }
+
+  const handleTransHistPress = () => {
+    if (!auth.currentUser) {
+      setMessageType('error')
+      setMsg("Access Denied. Please login first.")
+      setAlert(true)
+    } else {
+      setPopup("transHist")
+    }
+  }
+
+  const handleViewReqPress = () => {
+    if (!auth.currentUser) {
+      setMessageType('error')
+      setMsg("Access Denied. Please login first.")
+      setAlert(true)
+    } else {
+      setPopup("requests")
+    }
+  }
+
   const shopTypeButtons = [
     { label: "About Us", action: () => console.log("About Us clicked") },
     { label: "Vouchers", action: handleDrawerVoucherPress },
-    { label: "Transaction History", action: () => console.log() },
-    { label: "Sign Out", action: () => console.log("Sign Out clicked") },
+    { label: "Transaction History", action: handleTransHistPress },
+    { label: "View My Requests", action: handleViewReqPress },
+    { label: "Sign Out", action: handle_sign_out },
   ];
 
   const addToCartDialogContent = () => {
@@ -232,17 +283,6 @@ const Home: React.FC = () => {
 
   const drawerContent = (
     <Box role="presentation" sx={{ width: 250, padding: 2 }}>
-      <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>
-        Categories
-      </Typography>
-      <List>
-        {filterOptions.map((option) => (
-          <ListItem key={option} disablePadding>
-            <Checkbox />
-            <ListItemText primary={option} />
-          </ListItem>
-        ))}
-      </List>
       <List sx={{ mt: 1 }}>
         {shopTypeButtons.map((button) => (
           <ListItem key={button.label} disablePadding>
@@ -312,20 +352,23 @@ const Home: React.FC = () => {
           </Box>
 
           {/* Right Section */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Button
-              variant="contained"
-              sx={{
-                backgroundColor: 'white',
-                color: 'green',
-                fontWeight: 'bold',
-                '&:hover': { backgroundColor: 'lightgray' }
-              }}
-              onClick={() => router.push("/login")}
-            >
-              Login
-            </Button>
-          </Box>
+          {
+            !auth.currentUser &&
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Button
+                variant="contained"
+                sx={{
+                  backgroundColor: 'white',
+                  color: 'green',
+                  fontWeight: 'bold',
+                  '&:hover': { backgroundColor: 'lightgray' }
+                }}
+                onClick={() => router.push("/login")}
+              >
+                Login
+              </Button>
+            </Box>
+          }
         </Box>
       </Box>
 
@@ -472,7 +515,88 @@ const Home: React.FC = () => {
       {/* Voucher Dialog */}
       <Dialog open={popup == "vouchers"}>
           <DialogTitle>Vouchers</DialogTitle>
-          <DialogContent>Voucher Amount: {userData ? userData["voucher_amount"] : ""}</DialogContent>
+          <DialogContent>Voucher Amount: ${userData ? userData["voucher_amount"] : ""}</DialogContent>
+          <DialogActions>
+            <Button onClick={() => setPopup(null)}>Close</Button>
+          </DialogActions>
+      </Dialog>
+
+      {/* Transaction History Dialog */}
+      <Dialog open={popup == "transHist"} maxWidth='lg' fullWidth>
+          <DialogTitle>Transaction History</DialogTitle>
+          <Box>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell align='center'>Purchase Date</TableCell>
+                  <TableCell align='center'>Items Purchased</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                  {
+                    userTransHist.map((x, index) => (
+                      <TableRow key={index}>
+                        <TableCell align='center'>{x.data().purchase_date.toDate().toLocaleString()}</TableCell>
+                        <TableCell align='center'>
+                          <List>
+                            {
+                              x.data().purchase.map((y : any, id : number) => (
+                                <ListItem key={id} sx={{justifyContent:'center'}}>
+                                  <Typography variant='body2'>{id + 1}. {y.quantity}x {y.item_name}</Typography>
+                                </ListItem>
+                              ))
+                            }
+                          </List>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  }
+              </TableBody>
+            </Table>
+          </Box>
+          <DialogActions>
+            <Button onClick={() => setPopup(null)}>Close</Button>
+          </DialogActions>
+      </Dialog>
+
+
+      {/* Requests Dialog */}
+      <Dialog open={popup == "requests"} maxWidth='lg' fullWidth>
+          <DialogTitle>Request History</DialogTitle>
+          <Box>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell align='center'>Request Date</TableCell>
+                  <TableCell align='center'>Item</TableCell>
+                  <TableCell align='center'>Status</TableCell>
+                  <TableCell align='center'>Log</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                  {
+                    userReqHist.map((x, index) => (
+                      <TableRow key={index}>
+                        <TableCell align='center'>{x.data().date.toDate().toLocaleString()}</TableCell>
+                        <TableCell align='center'>{x.data().item_name}</TableCell>
+                        <TableCell align='center'>{x.data().status.charAt(0).toUpperCase() + x.data().status.slice(1)}</TableCell>
+                        <TableCell align='center'>
+                          <List>
+                            {
+                              x.data().log.map((y : any, id : number) => (
+                                <ListItem key={id} sx={{justifyContent:'center'}}>
+                                  <Typography variant='body2'>{id + 1}. {y}</Typography>
+                                </ListItem>
+                              ))
+                            }
+                          </List>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  }
+              </TableBody>
+            </Table>
+          </Box>
           <DialogActions>
             <Button onClick={() => setPopup(null)}>Close</Button>
           </DialogActions>
