@@ -6,7 +6,7 @@ import { Box, Typography, Button, TextField, Drawer, Checkbox, ListItem, List, L
   TableHead, TableRow, TableCell, TableBody, Paper, Alert, Grid2, Slider, Input } from "@mui/material";
 import { Cancel, Search, ShoppingCart } from "@mui/icons-material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { getAllInventoryData, auth, createRequestData, createTransactionData, updateInventoryData, getUserData } from '@/firebaseConfig';
+import { getAllInventoryData, auth, createRequestData, createTransactionData, updateInventoryData, getUserData, updateUserData } from '@/firebaseConfig';
 import { useRouter } from 'next/navigation';
 import { QueryDocumentSnapshot, DocumentData, Timestamp } from 'firebase/firestore';
 
@@ -160,36 +160,43 @@ const Home: React.FC = () => {
     }
   }
 
-  const handleCheckOutPress = async (total : number) => {
-    if (useVoucher < 0 || useVoucher > userData?.voucher_amount || useVoucher > total) {
-      setAlert(true)
-      setMessageType("error")
-      setMsg('Please enter valid voucher redemption amount.')
-      return
+  const handleCheckOutPress = async (total: number) => {
+    if (useVoucher < 0 || useVoucher > (userData?.voucher_amount || 0) || useVoucher > total) {
+      setAlert(true);
+      setMessageType("error");
+      setMsg("Please enter a valid voucher redemption amount.");
+      return;
     }
-
-    const checkout_cart : any[] = cart.map(x => {
-      const new_item : any = {...x}
-      delete new_item.cost
-      return new_item
-    })
-    
+    const checkout_cart: any[] = cart.map((x) => {
+      const new_item: any = { ...x };
+      delete new_item.cost; 
+      return new_item;
+    });
+  
     try {
-      await createTransactionData(checkout_cart, Timestamp.now())
-      cart.forEach(async x => {
-        await updateInventoryData(x.item_name, x.quantity, 0)
-      })
-      setAlert(true)
-      setMessageType("success")
-      setMsg("Successfully made purchase!")
-      setCart([])
+      const newVoucherAmount = Math.round((userData?.voucher_amount || 0) - useVoucher) * 100 / 100;
+      if (userData) {
+        await updateUserData(newVoucherAmount, userData.transaction_history || []);
+      }
+        await createTransactionData(checkout_cart, Timestamp.now());
+        for (const item of cart) {
+        await updateInventoryData(item.item_name, item.quantity, 0);
+      }
+      setAlert(true);
+      setMessageType("success");
+      setMsg("Successfully made purchase!");
+      setCart([]);
+      setUserData((prev) => ({
+        ...prev,
+        voucher_amount: newVoucherAmount,
+      }));
     } catch (error) {
-      setAlert(true)
-      setMessageType("error")
-      setMsg(String(error))
+      setAlert(true);
+      setMessageType("error");
+      setMsg(`Error: ${(error as Error).message}`);
     }
-  }
-
+  };
+  
   const shopTypeButtons = [
     { label: "About Us", action: () => console.log("About Us clicked") },
     { label: "Vouchers", action: handleDrawerVoucherPress },
