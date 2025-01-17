@@ -132,7 +132,7 @@ export async function createTransactionData(purchase : { item_name: string, quan
         throw new Error("No user signed in");
     }
     await addDoc(collection(database, "transactions"), {
-        "userEmail" : currentUser.email,
+        "user_email" : currentUser.email,
         "purchase" : purchase,
         "purchase_date" : purchase_date
     })
@@ -166,7 +166,7 @@ export async function getTransactionData() {
           throw new Error("No user signed in");
         }
         const response = await getDocs(query(collection(database, "transactions"), where("user_email", "==", currentUser.email)))
-        return response.docs[0].data()
+        return response.docs
     } catch (error) {
         console.log("Error: ", error)
     }
@@ -304,6 +304,23 @@ export async function updateRequestData(docRef : DocumentReference, status : str
             "status" : status,
             "log" : log
         })
+    } catch (error) {
+        console.error(error)
+    }
+}
+
+export async function getUserRequestData() {
+    // returns an array of all the request documents
+    if (!auth.currentUser) {
+        throw new Error("No User signed in")
+    }
+    try {
+        const docs = await getDocs(
+            query(collection(database, "requests"), where("user_email", "==", auth.currentUser.email))
+        )
+        if (!docs.empty) {
+            return docs.docs
+        }
     } catch (error) {
         console.error(error)
     }
