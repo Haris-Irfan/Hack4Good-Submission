@@ -141,13 +141,15 @@ const Home: React.FC = () => {
 
   const handleResetPassword = async () => {
     try {
-      await updateUserPassword(targetUserEmail, password)
-      setMessageType('success')
-      setMsg("Successfully updated user password")
-      setAlert(true)
-      setPopup(null)
-      setTargetUserEmail('')
-      setPassword('')
+      const response = await updateUserPassword(targetUserEmail, password)
+      if (response?.ok) {
+        setMessageType('success')
+        setMsg("Successfully updated user password")
+        setAlert(true)
+        setPopup(null)
+        setTargetUserEmail('')
+        setPassword('')
+      }
     } catch (error) {
       setMessageType('error')
       setMsg("Failed to update user password" + error)
@@ -287,7 +289,7 @@ const Home: React.FC = () => {
 
   const handle_sign_out = async () => {
     await SignOut()
-    router.push('../')
+    router.push('../login/')
   }
 
   const handleAdjustRequest = async (index : number) => {
@@ -296,6 +298,8 @@ const Home: React.FC = () => {
       let data = await getPendingRequestData()
       if (data) {
         setPendingRequests(data)
+      } else {
+        setPendingRequests([])
       }
       data = await getRequestData()
       if (data) {
@@ -537,7 +541,7 @@ const Home: React.FC = () => {
                 </TableHead>
                 <TableBody>
                   {
-                    pendingRequests.map((x, index) => (
+                    pendingRequests && pendingRequests.map((x, index) => (
                       <TableRow key={index}>
                         <TableCell align='center'>{x.data().user_email}</TableCell>
                         <TableCell align='center'>{x.data().item_name}</TableCell>
@@ -563,7 +567,7 @@ const Home: React.FC = () => {
               </Table>
 
 
-              <Typography variant='h6' sx={{marginTop:4}}>All Requests</Typography>
+              <Typography variant='h6' sx={{marginTop:20}}>All Requests</Typography>
               <Table>
                 <TableHead>
                   <TableRow>
