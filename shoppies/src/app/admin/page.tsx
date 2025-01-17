@@ -2,32 +2,27 @@
 
 import React, { useEffect, useState } from 'react';
 import { Box, Typography, Button, TextField, Drawer,ListItem, List,
-  IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TableContainer, Table,
-  TableHead, TableRow, TableCell, TableBody, Paper, Alert,} from "@mui/material";
+  IconButton, Dialog, DialogTitle, DialogActions, Table,
+  TableHead, TableRow, TableCell, TableBody, Alert,
+  Slider,} from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { getAllInventoryData, auth, getUserData, getAllUserData } from '@/firebaseConfig';
+import { getAllInventoryData, getAllUserData, updateInventoryData } from '@/firebaseConfig';
 import { useRouter } from 'next/navigation';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
-import { isUserSuspended, reenableUser, suspendUser, updateUserPassword } from '@/firebaseAdminApiCalls';
+import { reenableUser, suspendUser, updateUserPassword } from '@/firebaseAdminApiCalls';
 
 const Home: React.FC = () => {
 
-  interface cartItem {
-    item_name : string,
-    quantity : number,
-    cost: number
-  }
-
   const [popup, setPopup] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [searchBar, setSearchBar] = useState<string>('')
 
   const [messageType, setMessageType] = useState<string>('') //success or error
   const [msg, setMsg] = useState<string>('')
   const [alert, setAlert] = useState<boolean>(false)
 
   const [products, setProducts] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
-  const [filteredProducts, setFilteredProducts] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
+  const [targetProduct, setTargetProduct] = useState<string>('')
+  const [adjustProductQuantity, setAdjustProductQuantity] = useState<number>(1)
 
   const [pageView, setPageView] = useState<string>("Account Management")
 
@@ -58,7 +53,6 @@ const Home: React.FC = () => {
         const data = await getAllInventoryData()
         if (data) {
           setProducts(data)
-          setFilteredProducts(data)
         }
       } catch (error) {
         console.error(error)
@@ -67,30 +61,6 @@ const Home: React.FC = () => {
     getProducts()
   }, [])
 
-  useEffect(() => {
-    if (auth.currentUser) {
-      const retrieveUserData = async () => {
-        try {
-          const data = await getUserData()
-          if (data) {
-            setUserData(data)
-          }
-        } catch (error) {
-          console.error(error)
-        }
-      }
-      retrieveUserData()
-    }
-  }, [])
-
-  useEffect(() => {
-    if (searchBar == '') {
-      setFilteredProducts(products)
-    } else {
-      const data = products.filter(x => x.data()["item_name"].toLowerCase().includes(searchBar.toLowerCase()))
-      setFilteredProducts(data)
-    }
-  }, [searchBar])
 
   const toggleDrawer = (open: boolean) => {
     return (event: React.MouseEvent | React.KeyboardEvent) => {
@@ -145,11 +115,61 @@ const Home: React.FC = () => {
     }
   }
 
+  const handleAdjustInventory = async (type : number) => {
+    // type argument should be either 0 or 1. 0 represents subtract (purchase), 1 represents add (restock)
+    if (type == 0) {
+      const prod = products.find(x => x.data().item_name == targetProduct)
+      if (prod) {
+        if (prod.data().quantity < adjustProductQuantity) {
+          setMessageType('error')
+          setMsg("Invalid removal! Quantity to remove is greater than existing quantity")
+          setAlert(true)
+        } else {
+          try {
+            await updateInventoryData(targetProduct, adjustProductQuantity, 0)
+            const data = await getAllInventoryData()
+            if (data) {
+              setProducts(data)
+            }
+            setMessageType('success')
+            setMsg("Successfully updated item quantity")
+            setAlert(true)
+            setPopup(null)
+            setTargetProduct('')
+            setAdjustProductQuantity(1)
+          } catch (error) {
+            setMessageType('error')
+            setMsg("Failed to update item quantity" + error)
+            setAlert(true)
+          }
+        }
+      }
+    } else {
+      try {
+        await updateInventoryData(targetProduct, adjustProductQuantity, 1)
+        const data = await getAllInventoryData()
+        if (data) {
+          setProducts(data)
+        }
+        setMessageType('success')
+        setMsg("Successfully updated item quantity")
+        setAlert(true)
+        setPopup(null)
+        setTargetProduct('')
+        setAdjustProductQuantity(1)
+      } catch (error) {
+        setMessageType('error')
+        setMsg("Failed to update item quantity" + error)
+        setAlert(true)
+      }
+    }
+  }
+
   const shopTypeButtons = [
-    { label: "Account Management", action: () => console.log("Sign Out clicked") },
+    { label: "Account Management", action: () => setPageView("Account Management") },
     { label: "Product Requests", action: () => console.log("Sign Out clicked") },
     { label: "Product Requests Summary", action: () => console.log("Sign Out clicked") },
-    { label: "Inventory Management", action: () => console.log("Sign Out clicked") },
+    { label: "Inventory Management", action: () => {setPageView("Inventory Management"); console.log(products)} },
     { label: "Inventory Summary", action: () => console.log("Sign Out clicked") },
     { label: "Sign Out", action: () => console.log("Sign Out clicked") },
   ];
@@ -221,45 +241,97 @@ const Home: React.FC = () => {
             {pageView}
           </Typography>
           
+          {/* Account Management Tab */}
           {
             pageView == "Account Management" &&
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell align='center'>User Email Address</TableCell>
-                  <TableCell align='center'>Voucher Amount</TableCell>
-                  <TableCell align='center'>Transaction History</TableCell>
-                  <TableCell align='center'></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {
-                  allUserData.map((item, index) => (
-                    <TableRow key={index}>
-                      <TableCell align='center'>{item.data().user_email}</TableCell>
-                      <TableCell align='center'>{item.data().voucher_amount}</TableCell>
-                      <TableCell align='center'>
-                        <List>
-                          {
-                            item.data().transaction_history.map((entry : any, id : number) => (
-                              <ListItem key={id} sx={{ justifyContent: 'center' }}>
-                                <Typography variant='body2'>{entry.quantity} {entry.item_name} was purchased on {entry.purchase_date.toDate().toLocaleString()}</Typography>
-                              </ListItem>
-                            ))
-                          }
-                        </List>
-                      </TableCell>
-                      <TableCell align='center'>
-                        <Button onClick={e => {e.preventDefault(); handleSuspendUser(index)}}>Suspend User</Button>
-                        <Button onClick={e => {e.preventDefault(); handleReenableUser(index)}}>Re-enable User</Button>
-                        <Button onClick={() => {setPopup("resetPW"); setTargetUserEmail(item.data().user_email)}}>Reset Password</Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                }
-              </TableBody>
-            </Table>
+            <Box>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell align='center'>User Email Address</TableCell>
+                    <TableCell align='center'>Voucher Amount</TableCell>
+                    <TableCell align='center'>Transaction History</TableCell>
+                    <TableCell align='center'></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {
+                    allUserData.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell align='center'>{item.data().user_email}</TableCell>
+                        <TableCell align='center'>{item.data().voucher_amount}</TableCell>
+                        <TableCell align='center'>
+                          <List>
+                            {
+                              item.data().transaction_history.map((entry : any, id : number) => (
+                                <ListItem key={id} sx={{ justifyContent: 'center' }}>
+                                  <Typography variant='body2'>{entry.quantity} {entry.item_name} was purchased on {entry.purchase_date.toDate().toLocaleString()}</Typography>
+                                </ListItem>
+                              ))
+                            }
+                          </List>
+                        </TableCell>
+                        <TableCell align='center'>
+                          <Button onClick={e => {e.preventDefault(); handleSuspendUser(index)}}>Suspend User</Button>
+                          <Button onClick={e => {e.preventDefault(); handleReenableUser(index)}}>Re-enable User</Button>
+                          <Button onClick={() => {setPopup("resetPW"); setTargetUserEmail(item.data().user_email)}}>Reset Password</Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  }
+                </TableBody>
+              </Table>
+              <Button sx={{margin:2}}>New User</Button>
+            </Box>
           }
+
+          {/* Inventory Management Tab */}
+          {
+            pageView == "Inventory Management" &&
+            <Box>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell align='center'>Item</TableCell>
+                    <TableCell align='center'>Quantity</TableCell>
+                    <TableCell align='center'>Current Price</TableCell>
+                    <TableCell align='center'>Logs</TableCell>
+                    <TableCell align='center'></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {
+                    products.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell align='center'>{item.data().item_name}</TableCell>
+                        <TableCell align='center'>{item.data().quantity}</TableCell>
+                        <TableCell align='center'>${item.data().cost}</TableCell>
+                        <TableCell align='center'>
+                          <List>
+                            {
+                              item.data()["log"].map((entry : string, id : number) => (
+                                <ListItem key={id} sx={{ justifyContent: 'center' }}>
+                                  <Typography variant='body2'>{id + 1}. {entry}</Typography>
+                                </ListItem>
+                              ))
+                            }
+                          </List>
+                        </TableCell>
+                        
+                        <TableCell align='center'>
+                          <Button onClick={ () => {setPopup("adjustQuantity"); setTargetProduct(item.data().item_name) }}>Adjust Quantity</Button>
+                          <Button>Change Price</Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  }
+                </TableBody>
+              </Table>
+              <Button sx={{margin:2}}>New Item</Button>
+            </Box>
+            
+          }
+          
           
         </Box>
       </Box>
@@ -277,11 +349,27 @@ const Home: React.FC = () => {
  
       {/* Reset Password Dialog */}
       <Dialog open={popup =='resetPW'} maxWidth='md' fullWidth>
-        <DialogTitle>Reset Password for {targetUserEmail}</DialogTitle>
+        <DialogTitle sx={{textAlign:'center'}}>Reset Password for {targetUserEmail}</DialogTitle>
         <TextField placeholder='Enter new password' value={password} onChange={e => setPassword(e.target.value)} sx={{margin:2}}/>
         <DialogActions sx = {{ justifyContent: 'space-between' }}>
           <Button onClick={() => setPopup(null)}>Close</Button>
           <Button onClick={handleResetPassword}>Update Password</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Adjust Quantity Dialog */}
+      <Dialog open={popup == 'adjustQuantity'} maxWidth='md' fullWidth>
+        <DialogTitle sx={{textAlign:'center'}}>Adjust Quantity for {targetProduct}</DialogTitle>
+          <Box sx={{ width: 300, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2, alignSelf:'center' }}>
+            <Slider min={1} max={200} step={1} value={adjustProductQuantity} onChange={(e : any) => setAdjustProductQuantity(e.target.value)}/>
+            <TextField disabled variant='outlined' size='small' value={adjustProductQuantity} sx={{width: 75}}></TextField>
+          </Box>
+        <DialogActions sx = {{ justifyContent: 'space-between' }}>
+          <Button onClick={() => setPopup(null)}>Close</Button>
+          <Box>
+            <Button onClick={() => handleAdjustInventory(1)}>Add</Button>
+            <Button onClick={() => handleAdjustInventory(0)}>Remove</Button>
+          </Box>
         </DialogActions>
       </Dialog>
 
