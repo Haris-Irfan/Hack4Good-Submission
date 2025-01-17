@@ -4,9 +4,14 @@ import React, { useEffect, useState } from 'react';
 import { Box, Typography, Button, TextField, Drawer,ListItem, List,
   IconButton, Dialog, DialogTitle, DialogActions, Table,
   TableHead, TableRow, TableCell, TableBody, Alert,
-  Slider,} from "@mui/material";
+  Slider,
+  DialogContent,
+  TableContainer,
+  Paper,} from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
+
 import { changeCostOfInventoryItem, createInventoryData, createUserData, createUserDataViaAdmin, getAllInventoryData, getAllUserData, getLast7DaysRequestData, getPendingRequestData, getRequestData, updateInventoryData } from '@/firebaseConfig';
+
 import { useRouter } from 'next/navigation';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { createNewUser, reenableUser, suspendUser, updateUserPassword } from '@/firebaseAdminApiCalls';
@@ -25,6 +30,7 @@ const Home: React.FC = () => {
   const [adjustProductQuantity, setAdjustProductQuantity] = useState<number>(1)
   const [adjustPrice, setAdjustPrice] = useState<number>(1)
   const [itemName, setItemName] = useState<string>('')
+  const [userList, setUserList] = useState<DocumentData>()
 
   const [allRequests, setAllRequests] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
   const [pendingRequests, setPendingRequests] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
@@ -254,6 +260,7 @@ const Home: React.FC = () => {
     }
   }
 
+
   const most_requested = () => {
     if (last7Requests) {
       const itemNames = last7Requests.map(x => x.data().item_name)
@@ -269,6 +276,16 @@ const Home: React.FC = () => {
       console.log(freqArr.length)
       
       return freqArr.slice(0, 3)
+
+  const handleUserAccountManagement = async () => {
+    try {
+        const user = await getUserData()
+        setPopup("accountManagement")
+        setUserList(user)
+    } catch (error) {
+        setAlert(true)
+        setMessageType("error")
+        setMsg("Failed to retrieve user data")
     }
   }
 
@@ -610,7 +627,36 @@ const Home: React.FC = () => {
           <Button onClick={handleAddNewUser}>Add User</Button>
         </DialogActions>
       </Dialog>
-
+                
+      {/* Account Management Dialog */}
+      <Dialog open={popup == "accountManagement"} maxWidth="md" fullWidth>
+          <DialogTitle>Account Management</DialogTitle>
+          <DialogContent>
+          <TableContainer component={Paper}>
+              <Table>
+              <TableHead>
+                  <TableRow>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Voucher Amount</TableCell>
+                  </TableRow>
+              </TableHead>
+              <TableBody>
+                  {
+                  userList?.map((user: { email: any, voucher_amount: number, disabled: boolean }, index: number) => (
+                      <TableRow key={index}>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{user.voucher_amount}</TableCell>
+                      </TableRow>
+                  ))
+                  }
+              </TableBody>
+              </Table>
+          </TableContainer>
+          </DialogContent>
+          <DialogActions>
+          <Button onClick={() => setPopup(null)}>Close</Button>
+          </DialogActions>
+      </Dialog>
     </Box>
   );
 };

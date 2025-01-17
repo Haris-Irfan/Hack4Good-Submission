@@ -6,6 +6,8 @@ import './AdminLoginPage.css';
 import { auth, createUserData, getUserData, newUserSignUp, updateUserData } from '@/firebaseConfig';
 import { browserLocalPersistence, onAuthStateChanged, setPersistence, signInWithEmailAndPassword } from 'firebase/auth';
 import { Timestamp } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 interface Transaction {
   item_name: string;
@@ -18,12 +20,13 @@ type transactions = Transaction[];
 let voucher_amount = 0;
 let transaction_history : transactions[] = []
 
-const LoginPage: React.FC = () => {
-  const [popup, setPopup] = useState<string | null>(null);
+const AdminLoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [signUpSuccessAlert, setSignUpSuccessAlert] = useState<boolean>(false)
+
+  const router = useRouter();
 
   const loadUserData = async () => {
     if (!auth.currentUser) {
@@ -60,8 +63,7 @@ const LoginPage: React.FC = () => {
       await signInWithEmailAndPassword(auth, email, password) 
       await loadUserData()
       await storeToFirestore()
-      setPopup(null);
-      await storeToFirestore()
+      router.push('/admin');
       console.log("Successful login")
     } catch (err: any) {
       console.error(err.message);
@@ -79,22 +81,29 @@ const LoginPage: React.FC = () => {
           className="login-input"
           type="text"
           placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
         />
       <div className="password-row">
         <input
           className="login-input"
           placeholder="Password"
           type="password"
-    />
-    <button className="arrow-btn">→</button>
-  </div>
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
       </div>
-      <div className="remember-me">
-        <input type="checkbox" id="remember" />
-        <label htmlFor="remember">Remember me</label>
+      </div>
+      <div className="buttons">
+        <button className="login-btn" onClick={handleLogin}>
+          Sign In
+        </button>
+        <button className="signup-btn" onClick={handleSignUp}>
+          Sign Up
+        </button>
       </div>
     </div>
   );
 };
 
-export default LoginPage;
+export default AdminLoginPage;
