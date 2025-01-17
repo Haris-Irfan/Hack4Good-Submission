@@ -3,12 +3,14 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Typography, Button, TextField, Drawer, Checkbox, ListItem, List, ListItemText,
   IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TableContainer, Table,
-  TableHead, TableRow, TableCell, TableBody, Paper, Alert, Grid2, Slider, Input } from "@mui/material";
+  TableHead, TableRow, TableCell, TableBody, Paper, Alert, Slider } from "@mui/material";
 import { Cancel, Search, ShoppingCart } from "@mui/icons-material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { getAllInventoryData, auth, createRequestData, createTransactionData, updateInventoryData, getUserData } from '@/firebaseConfig';
 import { useRouter } from 'next/navigation';
 import { QueryDocumentSnapshot, DocumentData, Timestamp } from 'firebase/firestore';
+import { set } from 'date-fns';
+import { createNewUser, reenableUser, suspendUser, updateUserPassword } from '@/firebaseAdmin';
 
 const Home: React.FC = () => {
 
@@ -33,6 +35,11 @@ const Home: React.FC = () => {
   const [addCartQuantity, setAddCartQuantity] = useState<number>(1)
 
   const [userData, setUserData] = useState<DocumentData>()
+  const [userList, setUserList] = useState<DocumentData>()
+
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+
 
   const router = useRouter()
 
@@ -182,12 +189,24 @@ const Home: React.FC = () => {
     }
   }
 
+  const handleUserAccountManagement = async () => {
+    try {
+        const user = await getUserData()
+        setPopup("accountManagement")
+        setUserList(user)
+    } catch (error) {
+        setAlert(true)
+        setMessageType("error")
+        setMsg("Failed to retrieve user data")
+    }
+  }
+
   const shopTypeButtons = [
     { label: "About Us", action: () => console.log("About Us clicked") },
     { label: "Vouchers", action: handleDrawerVoucherPress },
     { label: "Transaction History", action: () => console.log() },
     { label: "Sign Out", action: () => console.log("Sign Out clicked") },
-    { label: "Account Management", action: () => console.log("Sign Out clicked") },
+    { label: "Account Management", action: handleUserAccountManagement },
     { label: "Inventory Requests", action: () => console.log("Sign Out clicked") },
     { label: "Inventory Management", action: () => console.log("Sign Out clicked") },
     { label: "Inventory Summary", action: () => console.log("Sign Out clicked") },
@@ -453,10 +472,40 @@ const Home: React.FC = () => {
             <Button onClick={() => setPopup(null)}>Close</Button>
           </DialogActions>
       </Dialog>
-
+                
+      {/* Account Management Dialog */}
+      <Dialog open={popup == "accountManagement"} maxWidth="md" fullWidth>
+          <DialogTitle>Account Management</DialogTitle>
+          <DialogContent>
+          <TableContainer component={Paper}>
+              <Table>
+              <TableHead>
+                  <TableRow>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Voucher Amount</TableCell>
+                  </TableRow>
+              </TableHead>
+              <TableBody>
+                  {
+                  userList?.map((user: { email: any, voucher_amount: number, disabled: boolean }, index: number) => (
+                      <TableRow key={index}>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{user.voucher_amount}</TableCell>
+                      </TableRow>
+                  ))
+                  }
+              </TableBody>
+              </Table>
+          </TableContainer>
+          </DialogContent>
+          <DialogActions>
+          <Button onClick={() => setPopup(null)}>Close</Button>
+          </DialogActions>
+      </Dialog>
     </Box>
   );
 };
 
 export default Home;
+
 
