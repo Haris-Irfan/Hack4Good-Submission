@@ -1,7 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { collection, addDoc, getFirestore, getDocs, query, where, Timestamp, updateDoc, DocumentReference } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, getAuth, signOut, onAuthStateChanged, User, browserLocalPersistence, setPersistence } from 'firebase/auth';
-import { Pending } from "@mui/icons-material";
 
 const firebaseConfig = {
     apiKey: "AIzaSyAqVtdqwIYvlNdz4jIDDJ6IAIYZVpOTj_Y",
@@ -53,9 +52,7 @@ export interface Transaction {
     purchase_date: Timestamp;
 }
 
-type transactions = Transaction[];
-
-export async function createUserData(voucher_amount : number, transaction_history : transactions[]) {
+export async function createUserData(voucher_amount : number) {
     try {
         if (!currentUser) {
             throw new Error("No user signed in");
@@ -63,7 +60,6 @@ export async function createUserData(voucher_amount : number, transaction_histor
         await addDoc(collection(database, "userData"), {
             "user_email" : currentUser.email,
             "voucher_amount" : voucher_amount,
-            "transaction_history" : transaction_history
         }) 
         console.log("Successfully created new user");
     } catch (error) {
@@ -71,12 +67,11 @@ export async function createUserData(voucher_amount : number, transaction_histor
     }
 }
 
-export async function createUserDataViaAdmin(user_email : string, voucher_amount : number, transaction_history : transactions[]) {
+export async function createUserDataViaAdmin(user_email : string, voucher_amount : number) {
     try {
         await addDoc(collection(database, "userData"), {
             "user_email" : user_email,
             "voucher_amount" : voucher_amount,
-            "transaction_history" : transaction_history
         }) 
         console.log("Successfully created new user");
     } catch (error) {
@@ -84,7 +79,7 @@ export async function createUserDataViaAdmin(user_email : string, voucher_amount
     }
 }
 
-export async function updateUserData(voucher_amount : number, transaction_history : transactions[]) {
+export async function updateUserData(voucher_amount : number) {
     try {
         if (!currentUser) {
             throw new Error("No user signed in");
@@ -95,9 +90,7 @@ export async function updateUserData(voucher_amount : number, transaction_histor
         }
         const docRef = doc.docs[0].ref
         await updateDoc(docRef, {
-            "user_email" : currentUser.email,
             "voucher_amount" : voucher_amount,
-            "transaction_history" : transaction_history
         })
         console.log("Successfully updated user data")
     } catch (error) {
@@ -161,12 +154,20 @@ export async function updateTransactionData(purchase : { item_name: string, quan
 
 export async function getTransactionData() {
     try {
-        //ignore error: user must be signed in for this function to be called
         if (!currentUser) {
           throw new Error("No user signed in");
         }
         const response = await getDocs(query(collection(database, "transactions"), where("user_email", "==", currentUser.email)))
-        return response.docs
+        return response.docs.sort((a, b) => b.data().purchase_date.seconds - a.data().purchase_date.seconds)
+    } catch (error) {
+        console.log("Error: ", error)
+    }
+}
+
+export async function getTransactionDataByEmail(user_email : string) {
+    try {
+        const response = await getDocs(query(collection(database, "transactions"), where("user_email", "==", user_email)))
+        return response.docs.sort((a, b) => b.data().purchase_date.seconds - a.data().purchase_date.seconds)
     } catch (error) {
         console.log("Error: ", error)
     }
@@ -333,7 +334,7 @@ export async function getRequestData() {
             query(collection(database, "requests"))
         )
         if (!docs.empty) {
-            return docs.docs
+            return docs.docs.sort((a, b) => b.data().date.seconds - a.data().date.seconds)
         }
     } catch (error) {
         console.error(error)
@@ -347,7 +348,7 @@ export async function getPendingRequestData() {
             query(collection(database, "requests"), where("status", "==", "pending"))
         )
         if (!docs.empty) {
-            return docs.docs
+            return docs.docs.sort((a, b) => b.data().date.seconds - a.data().date.seconds)
         }
     } catch (error) {
         console.error(error)
@@ -361,7 +362,7 @@ export async function getLast7DaysRequestData() {
             query(collection(database, "requests"), where("date", ">=", new Timestamp(Timestamp.now().seconds - 7 * 24 * 60 * 60, 0)))
         )
         if (!docs.empty) {
-            return docs.docs
+            return docs.docs.sort((a, b) => b.data().date.seconds - a.data().date.seconds)
         }
     } catch (error) {
         console.error(error)

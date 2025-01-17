@@ -6,7 +6,7 @@ import { Box, Typography, Button, TextField, Drawer, Checkbox, ListItem, List, L
   TableHead, TableRow, TableCell, TableBody, Paper, Alert, Grid2, Slider, Input } from "@mui/material";
 import { Cancel, Search, ShoppingCart } from "@mui/icons-material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { getAllInventoryData, auth, createRequestData, createTransactionData, updateInventoryData, getUserData, SignOut, getTransactionData, getUserRequestData } from '@/firebaseConfig';
+import { getAllInventoryData, auth, createRequestData, createTransactionData, updateInventoryData, getUserData, SignOut, getTransactionData, getUserRequestData, updateUserData } from '@/firebaseConfig';
 import { useRouter } from 'next/navigation';
 import { QueryDocumentSnapshot, DocumentData, Timestamp } from 'firebase/firestore';
 
@@ -189,7 +189,7 @@ const Home: React.FC = () => {
   }
 
   const handleCheckOutPress = async (total : number) => {
-    if (useVoucher < 0 || useVoucher > userData?.voucher_amount || useVoucher > total) {
+    if (!userData || useVoucher < 0 || useVoucher > userData?.voucher_amount || useVoucher > total) {
       setAlert(true)
       setMessageType("error")
       setMsg('Please enter valid voucher redemption amount.')
@@ -207,15 +207,26 @@ const Home: React.FC = () => {
       cart.forEach(async x => {
         await updateInventoryData(x.item_name, x.quantity, 0)
       })
-      const data = await getAllInventoryData()
+      await updateUserData(userData.voucher_amount - useVoucher)
+      let data = await getAllInventoryData()
       if (data) {
         setProducts(data)
         setFilteredProducts(data)
+      }
+      data = await getTransactionData()
+      if (data) {
+        setUserTransHist(data)
+      }
+      const data2 = await getUserData()
+      if (data) {
+        setUserData(data2)
       }
       setAlert(true)
       setMessageType("success")
       setMsg("Successfully made purchase!")
       setCart([])
+      setPopup(null)
+      setUseVoucher(0)
     } catch (error) {
       setAlert(true)
       setMessageType("error")
@@ -459,7 +470,7 @@ const Home: React.FC = () => {
 
 
       {/* Cart Dialog */}
-      <Dialog open={popup == "cart"} maxWidth='sm' fullWidth>
+      <Dialog open={popup == "cart"} maxWidth='lg' fullWidth>
         <DialogTitle>Shopping Cart</DialogTitle>
         <DialogContent>
           <TableContainer component={Paper}>
@@ -499,9 +510,9 @@ const Home: React.FC = () => {
         </Typography>
         <Box sx={{display:'flex', flexDirection:'row', gap:2, justifyContent:'center'}}>
           <Typography variant='body1' sx={{ fontWeight: 'bold', textAlign: 'center', marginTop:1 }}>Voucher amount to redeem: </Typography>
-          <TextField disabled variant='outlined' size='small' value={useVoucher} sx={{width: 60}}></TextField>
+          <TextField disabled variant='outlined' size='small' value={useVoucher} sx={{width: 120}}></TextField>
           <Slider min={0} max={userData ? userData.voucher_amount : 0} step={0.01}
-            sx={{width:'0.3', marginTop:1}} size='small' disabled={!userData}
+            sx={{width:'0.5', marginTop:1}} size='small' disabled={!userData}
             value={useVoucher} onChange={(e : any)=> setUseVoucher(e.target.value)}/>
         </Box>
         <Typography variant='body1' sx={{ fontWeight: 'bold', textAlign: 'center' }}>
@@ -543,7 +554,7 @@ const Home: React.FC = () => {
                             {
                               x.data().purchase.map((y : any, id : number) => (
                                 <ListItem key={id} sx={{justifyContent:'center'}}>
-                                  <Typography variant='body2'>{id + 1}. {y.quantity}x {y.item_name}</Typography>
+                                  <Typography variant='body2'>{y.quantity}x {y.item_name}</Typography>
                                 </ListItem>
                               ))
                             }
