@@ -70,6 +70,19 @@ export async function createUserData(voucher_amount : number, transaction_histor
     }
 }
 
+export async function createUserDataViaAdmin(user_email : string, voucher_amount : number, transaction_history : transactions[]) {
+    try {
+        await addDoc(collection(database, "userData"), {
+            "user_email" : user_email,
+            "voucher_amount" : voucher_amount,
+            "transaction_history" : transaction_history
+        }) 
+        console.log("Successfully created new user");
+    } catch (error) {
+        console.log("Error: ", error) 
+    }
+}
+
 export async function updateUserData(voucher_amount : number, transaction_history : transactions[]) {
     try {
         if (!currentUser) {

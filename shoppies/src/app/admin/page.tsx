@@ -6,10 +6,10 @@ import { Box, Typography, Button, TextField, Drawer,ListItem, List,
   TableHead, TableRow, TableCell, TableBody, Alert,
   Slider,} from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { changeCostOfInventoryItem, createInventoryData, getAllInventoryData, getAllUserData, updateInventoryData } from '@/firebaseConfig';
+import { changeCostOfInventoryItem, createInventoryData, createUserData, createUserDataViaAdmin, getAllInventoryData, getAllUserData, updateInventoryData } from '@/firebaseConfig';
 import { useRouter } from 'next/navigation';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
-import { reenableUser, suspendUser, updateUserPassword } from '@/firebaseAdminApiCalls';
+import { createNewUser, reenableUser, suspendUser, updateUserPassword } from '@/firebaseAdminApiCalls';
 
 const Home: React.FC = () => {
 
@@ -207,6 +207,27 @@ const Home: React.FC = () => {
     }
   }
 
+  const handleAddNewUser = async () => {
+    try {
+      await createNewUser(itemName, password)
+      await createUserDataViaAdmin(itemName, 0.00, [])
+      const data = await getAllUserData()
+      if (data) {
+        setAllUserData(data)
+      }
+      setMessageType('success')
+      setMsg("Successfully added new user")
+      setAlert(true)
+      setPopup(null)
+      setItemName('')
+      setPassword('')
+    } catch (error) {
+      setMessageType('error')
+      setMsg("Failed to add new user" + error)
+      setAlert(true)
+    }
+  }
+
   const shopTypeButtons = [
     { label: "Account Management", action: () => setPageView("Account Management") },
     { label: "Product Requests", action: () => console.log("Sign Out clicked") },
@@ -323,7 +344,7 @@ const Home: React.FC = () => {
                   }
                 </TableBody>
               </Table>
-              <Button sx={{margin:2}}>New User</Button>
+              <Button sx={{margin:2}} onClick={() => setPopup('newUser')}>New User</Button>
             </Box>
           }
 
@@ -449,6 +470,25 @@ const Home: React.FC = () => {
         <DialogActions sx = {{ justifyContent: 'space-between' }}>
           <Button onClick={() => setPopup(null)}>Close</Button>
           <Button onClick={handleAddNewItem}>Add Item</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* New User Dialog */}
+      <Dialog open={popup == 'newUser'} maxWidth='md' fullWidth>
+        <DialogTitle sx={{textAlign:'center'}}>Adjust New User</DialogTitle>
+          <Box sx={{ display:'flex', flexDirection:'row', gap: 2, alignSelf:'center', margin:1,}}>
+            <Typography sx={{marginTop:1}}>Email:</Typography>
+            <TextField placeholder='Enter User Email' value={itemName} onChange={e => setItemName(e.target.value)} size='small'/>
+          </Box>
+
+          <Box sx={{ display:'flex', flexDirection:'row', gap: 2, alignSelf:'center', margin:1}}>
+            <Typography sx={{marginTop:1}}>Password:</Typography>
+            <TextField placeholder='Enter Password' value={password} onChange={e => setPassword(e.target.value)} size='small'/>
+          </Box>
+
+        <DialogActions sx = {{ justifyContent: 'space-between' }}>
+          <Button onClick={() => setPopup(null)}>Close</Button>
+          <Button onClick={handleAddNewUser}>Add User</Button>
         </DialogActions>
       </Dialog>
 
