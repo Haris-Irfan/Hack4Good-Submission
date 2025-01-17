@@ -9,7 +9,9 @@ import { Box, Typography, Button, TextField, Drawer,ListItem, List,
   TableContainer,
   Paper,} from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { changeCostOfInventoryItem, createInventoryData, createUserData, createUserDataViaAdmin, getAllInventoryData, getAllUserData, getUserData, updateInventoryData } from '@/firebaseConfig';
+
+import { changeCostOfInventoryItem, createInventoryData, createUserData, createUserDataViaAdmin, getAllInventoryData, getAllUserData, getLast7DaysRequestData, getPendingRequestData, getRequestData, updateInventoryData } from '@/firebaseConfig';
+
 import { useRouter } from 'next/navigation';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { createNewUser, reenableUser, suspendUser, updateUserPassword } from '@/firebaseAdminApiCalls';
@@ -29,6 +31,10 @@ const Home: React.FC = () => {
   const [adjustPrice, setAdjustPrice] = useState<number>(1)
   const [itemName, setItemName] = useState<string>('')
   const [userList, setUserList] = useState<DocumentData>()
+
+  const [allRequests, setAllRequests] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
+  const [pendingRequests, setPendingRequests] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
+  const [last7Requests, setLast7Requests] = useState<QueryDocumentSnapshot<DocumentData, DocumentData>[]>([])
 
   const [pageView, setPageView] = useState<string>("Account Management")
 
@@ -65,6 +71,28 @@ const Home: React.FC = () => {
       }
     }
     getProducts()
+  }, [])
+
+  useEffect(() => {
+    const getPendingRequests = async () => {
+      try {
+        let data = await getPendingRequestData()
+        if (data) {
+          setPendingRequests(data)
+        }
+        data = await getRequestData()
+        if (data) {
+          setAllRequests(data)
+        }
+        data = await getLast7DaysRequestData()
+        if (data) {
+          setLast7Requests(data)
+        }
+      } catch (error) {
+        console.error(error)
+      }
+    }
+    getPendingRequests()
   }, [])
 
 
@@ -232,6 +260,23 @@ const Home: React.FC = () => {
     }
   }
 
+
+  const most_requested = () => {
+    if (last7Requests) {
+      const itemNames = last7Requests.map(x => x.data().item_name)
+      console.log(itemNames)
+      const freqMap = itemNames.reduce((acc, x) => {
+        acc[x] = (acc[x] || 0 ) + 1
+        return acc
+      }, {} as Record<string, number>)
+
+      const freqArr : [string, number][]= Object.entries(freqMap)
+      console.log(freqArr)
+      freqArr.sort((a, b) => b[1] - a[1])
+      console.log(freqArr.length)
+      
+      return freqArr.slice(0, 3)
+
   const handleUserAccountManagement = async () => {
     try {
         const user = await getUserData()
@@ -246,13 +291,12 @@ const Home: React.FC = () => {
 
   const shopTypeButtons = [
     { label: "Account Management", action: () => setPageView("Account Management") },
-    { label: "Product Requests Management", action: () => console.log("Sign Out clicked") },
-    { label: "Product Requests Summary", action: () => console.log("Sign Out clicked") },
     { label: "Inventory Management", action: () => setPageView("Inventory Management") },
     { label: "Inventory Summary", action: () => setPageView("Inventory Summary") },
+    { label: "Product Requests Management", action: () => console.log("Sign Out clicked") },
+    { label: "Product Requests Summary", action: () => setPageView("Product Requests Summary") },
     { label: "Sign Out", action: () => console.log("Sign Out clicked") },
   ];
-
 
   const drawerContent = (
     <Box role="presentation" sx={{ width: 250, padding: 2 }}>
@@ -437,6 +481,56 @@ const Home: React.FC = () => {
             </Box>
           }
           
+          {/* Product Requests Summary Tab */}
+          {
+            pageView == 'Product Requests Summary' &&
+            <Box>
+
+              <Box sx={{margin:3}}>
+                <Typography variant='h6'>Summary of Requests Made in last 7 Days</Typography>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell align='center'>Pending</TableCell>
+                      <TableCell align='center'>Approved</TableCell>
+                      <TableCell align='center'>Rejected</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell align='center'>{last7Requests.filter(x => x.data().status == "pending").length}</TableCell>
+                      <TableCell align='center'>{last7Requests.filter(x => x.data().status == "approved").length}</TableCell>
+                      <TableCell align='center'>{last7Requests.filter(x => x.data().status == "rejected").length}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </Box>
+
+              <Box sx={{margin:3}}>
+                <Typography variant='h6'>Top 3 Most Requested Items in last 7 days</Typography>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell align='center'>Item</TableCell>
+                      <TableCell align='center'>Number of times requested</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {
+                      most_requested()?.map((x, index) => (
+                        <TableRow key={index}>
+                          <TableCell align='center'>{x[0]}</TableCell>
+                          <TableCell align='center'>{x[1]}</TableCell>
+                        </TableRow>
+                      ))
+                    }
+                  </TableBody>
+                </Table>
+              </Box>
+
+            </Box>
+          }
+
         </Box>
       </Box>
 
